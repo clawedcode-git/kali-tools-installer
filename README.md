@@ -8,7 +8,7 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 - **Complete Kali toolset**: Installs all 600+ tools from Kali Linux repositories
 - **Interactive & non-interactive modes**: Run manually or automate in CI/CD
 - **Modular design**: Easy to extend for new distributions
-- **Graceful error handling**: Continues on individual package failures, provides summary report
+- **Package availability precheck**: Query repositories before installing to see what's available
 
 ## Quick Start
 
@@ -40,7 +40,7 @@ sudo ./install.sh
 | **Kali Linux** | apt | ✅ Native |
 | **Fedora** | dnf | ✅ Supported |
 | **RHEL/CentOS/Rocky/Alma** | dnf/yum | ✅ Supported |
-| **openSUSE** | zypper | 🟡 Planned |
+| **openSUSE** | zypper | ✅ Supported |
 | **Slackware** | slackpkg/sbopkg | ✅ Supported |
 | **Gentoo** | emerge | 🟡 Planned |
 | **Alpine** | apk | 🟡 Planned |
@@ -74,17 +74,43 @@ sudo ./install.sh --distro slackware --categories "password,wireless" --yes
 sudo ./install.sh --distro fedora --dry-run
 ```
 
+### Package Availability Precheck
+
+Before installing, check what packages are actually available in your distribution's repositories:
+
+```bash
+# Check all categories for a distro
+sudo ./install.sh --distro arch --precheck
+
+# Check specific categories
+sudo ./install.sh --distro arch --categories "web,password" --precheck
+
+# Check for a different distro (e.g., openSUSE)
+sudo ./install.sh --distro opensuse --precheck
+
+# Combined with dry-run to see installation plan
+sudo ./install.sh --distro fedora --precheck --dry-run
+```
+
+The precheck queries your distribution's package repositories and shows:
+- **Per-category statistics**: Total tools, available count, percentage, missing count
+- **Missing packages**: Lists tools not found in repositories
+- **Buildable from source**: Identifies missing packages that can be compiled (Go, Python, CMake, make, etc.)
+- **Overall summary**: Total availability percentage across all categories
+
 ### Command Line Options
 
 | Option | Description |
 |--------|-------------|
-| `--distro <name>` | Force distribution (arch, debian, fedora, slackware) |
+| `--distro <name>` | Force distribution (arch, debian, fedora, slackware, opensuse) |
 | `--categories <list>` | Comma-separated categories to install |
 | `--tools <list>` | Comma-separated specific tools to install |
 | `--yes`, `-y` | Skip confirmations |
 | `--dry-run` | Show packages without installing |
 | `--no-update` | Skip package database update |
 | `--log-file <path>` | Custom log location (default: /var/log/kali-tools-install.log) |
+| `--list-installed` | List installed Kali tools |
+| `--precheck` | Check package availability in repos (no install) |
 | `--help`, `-h` | Show help |
 
 ## Tool Categories
