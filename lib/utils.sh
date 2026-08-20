@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly CYAN='\033[0;36m'
+readonly NC='\033[0m'
+
+# LOG_FILE will be set by parse_args or defaults in init_logging
+readonly KALI_TOOLS_LIST="${PROJECT_ROOT}/config/kali-tools.list"
+
+DISTRO=""
+DISTRO_FAMILY=""
+PACKAGE_MANAGER=""
+SELECTED_CATEGORIES=()
+SELECTED_TOOLS=()
+DRY_RUN=false
+ASSUME_YES="${ASSUME_YES:-false}"
+SKIP_UPDATE=false
+TOOLS_TO_INSTALL=()
+INSTALL_RESULTS=()
+
+log() {
+    local level="$1"
+    shift
+    local msg="$*"
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local output="${timestamp} [${level}] ${msg}"
+    echo -e "${output}" >> "${LOG_FILE}"
+    echo -e "${output}"
+}
+
+info() { log "INFO" "${BLUE}$*${NC}"; }
+warn() { log "WARN" "${YELLOW}$*${NC}"; }
+error() { log "ERROR" "${RED}$*${NC}"; }
+success() { log "SUCCESS" "${GREEN}$*${NC}"; }
+debug() {
+    if [[ "${DEBUG:-false}" == "true" ]]; then
+        log "DEBUG" "${CYAN}$*${NC}"
+    fi
+}
+
+prompt_yes_no() {
+    local prompt="$1"
+    local default="${2:-n}"
+    local reply
+    if [[ "${ASSUME_YES}" == "true" ]]; then
+        return 0
+    fi
+    read -rp "${prompt} [y/N]: " reply
+    [[ "${reply,,}" =~ ^y ]]
+}
+
+prompt_select() {
+    local prompt="$1"
+    shift
+    local options=("$@")
+    local choice
+    if [[ "${ASSUME_YES}" == "true" ]]; then
+        echo "${options[0]}"
+        return 0
+    fi
+    local PS3="${prompt} "
+    select choice in "${options[@]}"; do
+        [[ -n "${choice}" ]] && { echo "${choice}"; return 0; }
+        echo "Invalid selection"
+    done
+}
+
+init_logging() {
+    LOG_FILE="${LOG_FILE:-/var/log/kali-tools-install.log}"
+    mkdir -p "$(dirname "${LOG_FILE}")"
+    touch "${LOG_FILE}"
+    info "=== Kali Tools Installer Started ==="
+    info "Log file: ${LOG_FILE}"
+}
+
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        error "This script must be run as root (use sudo)"
+        exit 1
+    fi
+}
+
+print_banner() {
+    cat << 'EOF'
+╔══════════════════════════════════════════════════════════════╗
+║                  Kali Tools Installer                        ║
+║         Install all Kali Linux tools on any distro           ║
+╚══════════════════════════════════════════════════════════════╝
+EOF
+}
+
+print_summary() {
+    local total=${#INSTALL_RESULTS[@]}
+    local success_count=0
+    local fail_count=0
+    local skip_count=0
+    
+    for result in "${INSTALL_RESULTS[@]}"; do
+        case "${result}" in
+            SUCCESS:*) ((success_count++)) ;;
+            FAILED:*) ((fail_count++)) ;;
+            SKIPPED:*) ((skip_count++)) ;;
+        esac
+    done
+    
+    echo
+    info "=== Installation Summary ==="
+    info "Total packages: ${total}"
+    success "Successful: ${success_count}"
+    [[ ${fail_count} -gt 0 ]] && error "Failed: ${fail_count}"
+    [[ ${skip_count} -gt 0 ]] && warn "Skipped: ${skip_count}"
+    
+    if [[ ${fail_count} -gt 0 ]]; then
+        echo
+        error "Failed packages:"
+        for result in "${INSTALL_RESULTS[@]}"; do
+            [[ "${result}" == FAILED:* ]] && error "  ${result#FAILED:}"
+        done
+        exit 1
+    fi
+    
+    success "All packages installed successfully!"
+}
