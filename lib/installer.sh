@@ -95,6 +95,7 @@ Categories: $(get_categories | tr '\n' ', ' | sed 's/, $//')
 Examples:
     sudo $(basename "$0")                          # Interactive
     sudo $(basename "$0") --distro arch --yes      # Non-interactive Arch
+    sudo $(basename "$0") --distro slackware --yes # Non-interactive Slackware
     sudo $(basename "$0") --categories web,vuln --yes
     sudo $(basename "$0") --tools nmap,metasploit-framework --dry-run
 EOF
@@ -336,7 +337,7 @@ run_installation() {
     
     local current=0
     for tool in "${TOOLS_TO_INSTALL[@]}"; do
-        ((current++))
+        let current=current+1
         info "[${current}/${#TOOLS_TO_INSTALL[@]}] Installing ${tool}..."
         install_package "${tool}" || true
     done
@@ -355,6 +356,7 @@ list_installed_tools() {
                 dnf) rpm -q "${pkg}" &>/dev/null && installed=true ;;
                 zypper) rpm -q "${pkg}" &>/dev/null && installed=true ;;
                 apk) apk info -e "${pkg}" &>/dev/null && installed=true ;;
+                slackpkg) slackpkg search installed "${pkg}" 2>/dev/null | grep -q "^${pkg}" && installed=true ;;
             esac
             if [[ "${installed}" == "true" ]]; then
                 echo "${tool} (${pkg})"

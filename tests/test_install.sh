@@ -5,6 +5,10 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly PROJECT_ROOT
 export PROJECT_ROOT
 
+# Set default LOG_FILE for testing
+LOG_FILE="/tmp/kali-tools-test-install.log"
+export LOG_FILE
+
 source "${PROJECT_ROOT}/lib/utils.sh"
 source "${PROJECT_ROOT}/lib/distro.sh"
 source "${PROJECT_ROOT}/lib/packages.sh"
