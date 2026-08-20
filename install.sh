@@ -28,6 +28,11 @@ main() {
         exit 0
     fi
     
+    if [[ "${PRECHECK}" == "true" ]]; then
+        run_precheck
+        exit 0
+    fi
+    
     select_installation_scope
     confirm_installation
     run_installation

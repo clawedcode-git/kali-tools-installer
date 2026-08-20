@@ -19,6 +19,7 @@ parse_args() {
     SKIP_UPDATE=false
     LIST_INSTALLED=false
     SHOW_HELP=false
+    PRECHECK=false
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -59,6 +60,10 @@ parse_args() {
                 LIST_INSTALLED=true
                 shift
                 ;;
+            --precheck)
+                PRECHECK=true
+                shift
+                ;;
             --help|-h)
                 SHOW_HELP=true
                 shift
@@ -71,7 +76,7 @@ parse_args() {
         esac
     done
     
-    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE
+    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK
 }
 
 print_help() {
@@ -80,7 +85,7 @@ print_help() {
 Usage: $(basename "$0") [OPTIONS]
 
 Options:
-    --distro <name>         Force distribution (arch, debian, fedora, slackware)
+    --distro <name>         Force distribution (arch, debian, fedora, slackware, opensuse)
     --categories <list>     Comma-separated categories to install
     --tools <list>          Comma-separated specific tools to install
     --yes, -y               Skip confirmations
@@ -88,6 +93,7 @@ Options:
     --no-update             Skip package database update
     --log-file <path>       Custom log location
     --list-installed        List installed Kali tools
+    --precheck              Check package availability in repos (no install)
     --help, -h              Show this help
 
 Categories: $(get_categories | tr '\n' ', ' | sed 's/, $//')
@@ -96,6 +102,7 @@ Examples:
     sudo $(basename "$0")                          # Interactive
     sudo $(basename "$0") --distro arch --yes      # Non-interactive Arch
     sudo $(basename "$0") --distro slackware --yes # Non-interactive Slackware
+    sudo $(basename "$0") --precheck --distro arch # Check package availability
     sudo $(basename "$0") --categories web,vuln --yes
     sudo $(basename "$0") --tools nmap,metasploit-framework --dry-run
 EOF
@@ -363,4 +370,277 @@ list_installed_tools() {
             fi
         fi
     done
+}
+
+check_package_available() {
+    local pkg_name="$1"
+    local available=false
+    
+    case "${PACKAGE_MANAGER}" in
+        pacman)
+            # pacman -Ss doesn't support exact regex well, use simple search
+            if pacman -Ss "${pkg_name}" 2>/dev/null | grep -q "^[a-z0-9/-]*${pkg_name}[a-z0-9/-]* "; then
+                available=true
+            fi
+            ;;
+        apt)
+            if apt-cache policy "${pkg_name}" 2>/dev/null | grep -q "Candidate:"; then
+                local candidate
+                candidate=$(apt-cache policy "${pkg_name}" 2>/dev/null | grep "Candidate:" | awk '{print $2}')
+                if [[ "${candidate}" != "(none)" && -n "${candidate}" ]]; then
+                    available=true
+                fi
+            fi
+            ;;
+        dnf)
+            if dnf list available "${pkg_name}" 2>/dev/null | grep -q "^${pkg_name}"; then
+                available=true
+            fi
+            ;;
+        zypper)
+            if zypper search --match-exact "${pkg_name}" 2>/dev/null | grep -q "^${pkg_name}"; then
+                available=true
+            fi
+            ;;
+        slackpkg)
+            if slackpkg search "${pkg_name}" 2>/dev/null | grep -q "^${pkg_name}"; then
+                available=true
+            fi
+            ;;
+        emerge)
+            if emerge --search "${pkg_name}" 2>/dev/null | grep -q "^${pkg_name}"; then
+                available=true
+            fi
+            ;;
+        apk)
+            if apk search "${pkg_name}" 2>/dev/null | grep -q "^${pkg_name}-"; then
+                available=true
+            fi
+            ;;
+        xbps)
+            if xbps-query -Rs "^${pkg_name}$" 2>/dev/null | grep -q "^${pkg_name}-"; then
+                available=true
+            fi
+            ;;
+    esac
+    
+    if [[ "${available}" == "true" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+check_build_from_source() {
+    local tool="$1"
+    local pkg_name="$2"
+    local buildable=false
+    local source_url=""
+    local build_method=""
+    
+    case "${tool}" in
+        # Tools commonly available via Go
+        gobuster|gowitness|gobuster|feroxbuster)
+            buildable=true
+            build_method="go install"
+            source_url="https://github.com/OJ/gobuster"
+            ;;
+        # Python-based tools
+        wfuzz|whatweb|cewl|crunch|patator|patator|droopescan|sqlmap|wapiti)
+            buildable=true
+            build_method="pip install / python setup.py"
+            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
+            ;;
+        # Tools with GitHub repos
+        masscan|recon-ng|dnsrecon|fierce|dnsenum|dnswalk|lbhd|metagoofil|smtp-user-enum|snmpcheck|sslscan|sslyze|theharvester)
+            buildable=true
+            build_method="make / pip install / python setup.py"
+            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
+            ;;
+        # Web tools
+        dirb|gobuster|wfuzz|whatweb|wpscan|joomscan|cmsmap|nikto)
+            buildable=true
+            build_method="make / pip install"
+            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
+            ;;
+        # Vulnerability tools
+        sqlmap|sqlninja|bbqsql|jboss-autopwn|wapiti|skipfish|arachni|vagaa)
+            buildable=true
+            build_method="python setup.py / pip install"
+            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
+            ;;
+        # Exploitation
+        beef|powersploit|nishang|empire|covenant|sliver|koadic|pupy|ratel|setoolkit)
+            buildable=true
+            build_method="git clone + custom"
+            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
+            ;;
+        # Password
+        hashcat|john|hydra|medusa|ncrack|patator|crowbar|cewl|crunch|cupp|rsmangler|maskprocessor|statsprocessor|princeprocessor)
+            buildable=true
+            build_method="make / cmake"
+            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
+            ;;
+        # Wireless
+        wifite|bully|pixiewps|fern-wifi-cracker|wifi-honey|hostapd-wpe|eaphammer|fluxion|wifiphisher|create_ap|mdk3|mdk4)
+            buildable=true
+            build_method="make / python setup.py"
+            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
+            ;;
+        # Forensics
+        volatility|volatility3|bulk-extractor|foremost|scalpel|binwalk|firmwalker|firmadyne)
+            buildable=true
+            build_method="python setup.py / make"
+            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
+            ;;
+        # Reverse
+        ghidra|radare2|cutter|rizin|angr|pwntools|ropper|ropgadget|one-gadget|checksec|pwninit|gef|pwndbg|peda)
+            buildable=true
+            build_method="make / pip install / gradle"
+            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
+            ;;
+        # Hardware
+        rtl-sdr|hackrf|ubertooth|yardstick|bladeRF|limesdr|gqrx|cubicsdr|sdrangel|inspectrum|sigrok|pulseview)
+            buildable=true
+            build_method="cmake / make"
+            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
+            ;;
+        # Reporting
+        faraday|dradis|magictree)
+            buildable=true
+            build_method="gem install / docker"
+            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
+            ;;
+        # Sniffing
+        driftnet|urlsnarf|msgsnarf|mailsnarf|webspy|sslsniff|tcpick|tcpxtract|chaosreader|arpalert|arpon|netdiscover|nbtscan|onesixtyone|ike-scan|cdpsnarf|dtpscan|yersinia)
+            buildable=true
+            build_method="make / python setup.py"
+            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
+            ;;
+        # Maintaining
+        proxychains|proxytunnel|sslh|stunnel|socat|cryptcat|sbd|dns2tcp|iodine|ptunnel|tcptunnel|udptunnel)
+            buildable=true
+            build_method="make / cmake"
+            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
+            ;;
+        *)
+            # Default: check if it's a known GitHub repo
+            buildable=false
+            build_method="unknown"
+            ;;
+    esac
+    
+    if [[ "${buildable}" == "true" ]]; then
+        echo "BUILDABLE:${build_method}:${source_url}"
+        return 0
+    else
+        echo "NOT_BUILDABLE"
+        return 1
+    fi
+}
+
+run_precheck() {
+    info "=== Package Availability Precheck ==="
+    info "Distribution: ${DISTRO} (${DISTRO_FAMILY})"
+    info "Package Manager: ${PACKAGE_MANAGER}"
+    echo
+    
+    update_package_db
+    
+    local total_tools=0
+    local total_available=0
+    local total_missing=0
+    local total_buildable=0
+    
+    # Get categories to check - use selected if specified, otherwise all
+    local categories=()
+    if [[ ${#SELECTED_CATEGORIES[@]} -gt 0 ]]; then
+        categories=("${SELECTED_CATEGORIES[@]}")
+    else
+        categories=($(get_categories))
+    fi
+    
+    for cat in "${categories[@]}"; do
+        local tools=($(get_tools_in_category "${cat}"))
+        local cat_total=${#tools[@]}
+        local cat_available=0
+        local cat_missing=0
+        local cat_buildable=0
+        local missing_tools=()
+        
+        total_tools=$((total_tools + cat_total))
+        
+        info "Checking category: ${cat} (${cat_total} tools)"
+        
+        for tool in "${tools[@]}"; do
+            local pkg_name
+            pkg_name=$(get_distro_pkg_name "${tool}")
+            
+            if [[ -z "${pkg_name}" ]]; then
+                cat_missing=$((cat_missing + 1))
+                total_missing=$((total_missing + 1))
+                missing_tools+=("${tool} (no package mapping)")
+                continue
+            fi
+            
+            if check_package_available "${pkg_name}"; then
+                cat_available=$((cat_available + 1))
+                total_available=$((total_available + 1))
+                debug "  [AVAILABLE] ${tool} -> ${pkg_name}"
+            else
+                cat_missing=$((cat_missing + 1))
+                total_missing=$((total_missing + 1))
+                missing_tools+=("${tool} -> ${pkg_name}")
+                
+                # Check if buildable from source
+                local build_result
+                build_result=$(check_build_from_source "${tool}" "${pkg_name}")
+                if [[ "${build_result}" == BUILDABLE:* ]]; then
+                    cat_buildable=$((cat_buildable + 1))
+                    total_buildable=$((total_buildable + 1))
+                    debug "  [MISSING but BUILDABLE] ${tool} -> ${pkg_name} (${build_result#BUILDABLE:})"
+                else
+                    debug "  [MISSING] ${tool} -> ${pkg_name}"
+                fi
+            fi
+        done
+        
+        local cat_pct=0
+        if [[ ${cat_total} -gt 0 ]]; then
+            cat_pct=$((cat_available * 100 / cat_total))
+        fi
+        
+        echo
+        info "  Category: ${cat}"
+        info "    Total: ${cat_total} | Available: ${cat_available} (${cat_pct}%) | Missing: ${cat_missing}"
+        if [[ ${cat_buildable} -gt 0 ]]; then
+            info "    Buildable from source: ${cat_buildable}"
+        fi
+        
+        if [[ ${#missing_tools[@]} -gt 0 && ${cat_missing} -le 20 ]]; then
+            info "    Missing packages:"
+            for mt in "${missing_tools[@]}"; do
+                info "      - ${mt}"
+            done
+        elif [[ ${cat_missing} -gt 20 ]]; then
+            info "    Missing packages: ${cat_missing} (use --verbose to list all)"
+        fi
+    done
+    
+    local total_pct=0
+    if [[ ${total_tools} -gt 0 ]]; then
+        total_pct=$((total_available * 100 / total_tools))
+    fi
+    
+    echo
+    info "=== Precheck Summary ==="
+    info "Total tools: ${total_tools}"
+    success "Available in repos: ${total_available} (${total_pct}%)"
+    error "Missing from repos: ${total_missing}"
+    if [[ ${total_buildable} -gt 0 ]]; then
+        warn "Potentially buildable from source: ${total_buildable}"
+    fi
+    echo
+    info "Use --dry-run --yes to see installation plan without building"
+    info "For buildable packages, consider using AUR (Arch), COPR (Fedora), or manual compilation"
 }

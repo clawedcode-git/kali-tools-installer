@@ -14,7 +14,7 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 
 ```bash
 # Clone and run
-git clone https://github.com/yourusername/kali-tools-installer.git
+git clone https://github.com/clawedcode-git/kali-tools-installer.git
 cd kali-tools-installer
 sudo ./install.sh
 ```
@@ -41,7 +41,7 @@ sudo ./install.sh
 | **Fedora** | dnf | ✅ Supported |
 | **RHEL/CentOS/Rocky/Alma** | dnf/yum | ✅ Supported |
 | **openSUSE** | zypper | 🟡 Planned |
-| **Slackware** | slackpkg/sbopkg | 🟡 Planned |
+| **Slackware** | slackpkg/sbopkg | ✅ Supported |
 | **Gentoo** | emerge | 🟡 Planned |
 | **Alpine** | apk | 🟡 Planned |
 
@@ -66,6 +66,9 @@ sudo ./install.sh --distro arch --yes
 
 # Install specific categories on Debian
 sudo ./install.sh --distro debian --categories "web,vuln,forensics" --yes
+
+# Install on Slackware
+sudo ./install.sh --distro slackware --categories "password,wireless" --yes
 
 # Dry run (show what would be installed)
 sudo ./install.sh --distro fedora --dry-run
