@@ -31,11 +31,17 @@ log() {
     local msg="$*"
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    local output="${timestamp} [${level}] ${msg}"
+    local terminal_output="${timestamp} [${level}] ${msg}"
     if [[ -n "${LOG_FILE:-}" ]] && { [[ -w "${LOG_FILE}" ]] || touch "${LOG_FILE}" 2>/dev/null; }; then
-        echo -e "${output}" >> "${LOG_FILE}" 2>/dev/null || true
+        local clean_output
+        clean_output=$(printf '%b' "${terminal_output}" | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+        echo "${clean_output}" >> "${LOG_FILE}" 2>/dev/null || true
     fi
-    echo -e "${output}"
+    if [[ -t 1 ]]; then
+        echo -e "${terminal_output}"
+    else
+        printf '%b\n' "${terminal_output}" | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g'
+    fi
 }
 
 info() { log "INFO" "${BLUE}$*${NC}"; }
@@ -111,7 +117,8 @@ EOF
 print_summary() {
     if [[ "${DRY_RUN}" == "true" ]]; then
         echo
-        info "Dry run complete."
+        info "=== Dry Run Summary ==="
+        info "Dry run complete. No packages were installed."
         return 0
     fi
     
@@ -122,9 +129,9 @@ print_summary() {
     
     for result in "${INSTALL_RESULTS[@]}"; do
         case "${result}" in
-            SUCCESS:*) ((success_count++)) ;;
-            FAILED:*) ((fail_count++)) ;;
-            SKIPPED:*) ((skip_count++)) ;;
+            SUCCESS:*) ((success_count+=1)) ;;
+            FAILED:*) ((fail_count+=1)) ;;
+            SKIPPED:*) ((skip_count+=1)) ;;
         esac
     done
     

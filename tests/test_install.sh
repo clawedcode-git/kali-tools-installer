@@ -202,7 +202,7 @@ test_arch_package_completeness() {
     for tool in $(list_all_tools); do
         local pkg="${TOOL_PKG_MAPPINGS["arch:${tool}"]:-}"
         if [[ -z "${pkg}" ]]; then
-            ((missing++))
+            ((missing+=1))
         fi
     done
     [[ ${missing} -eq 0 ]] || { test_log "FAIL: ${missing} tools missing Arch mappings"; return 1; }
@@ -233,31 +233,93 @@ test_precheck_with_dry_run() {
     test_log "PASS: combined --precheck and --dry-run executed successfully"
 }
 
+test_log_file_no_ansi() {
+    test_log "Testing log file contains no raw ANSI escape sequences..."
+    local test_log_file="/tmp/kali-tools-ansi-test.log"
+    rm -f "${test_log_file}"
+    LOG_FILE="${test_log_file}" info "Testing info message with color" >/dev/null
+    LOG_FILE="${test_log_file}" warn "Testing warning message with color" >/dev/null
+    LOG_FILE="${test_log_file}" error "Testing error message with color" >/dev/null
+    
+    if grep -q $'\033' "${test_log_file}" 2>/dev/null; then
+        test_log "FAIL: raw ANSI escape sequences found in log file"
+        rm -f "${test_log_file}"
+        return 1
+    fi
+    rm -f "${test_log_file}"
+    test_log "PASS: log file is clean of raw ANSI escape sequences"
+}
+
+test_cli_arg_validation() {
+    test_log "Testing CLI argument missing value validation..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro 2>&1 || true)
+    echo "${out}" | grep -q "Option --distro requires an argument" || { test_log "FAIL: missing arg for --distro not handled: ${out}"; return 1; }
+
+    out=$(bash "${PROJECT_ROOT}/install.sh" --categories 2>&1 || true)
+    echo "${out}" | grep -q "Option --categories requires an argument" || { test_log "FAIL: missing arg for --categories not handled: ${out}"; return 1; }
+
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro --yes 2>&1 || true)
+    echo "${out}" | grep -q "Option --distro requires an argument" || { test_log "FAIL: flag passed as value not caught: ${out}"; return 1; }
+
+    test_log "PASS: CLI argument missing value validation verified"
+}
+
+test_print_summary_set_e() {
+    test_log "Testing print_summary under set -euo pipefail..."
+    local out
+    # 1. Success case should exit 0
+    if ! out=$(bash -c 'set -euo pipefail; source lib/utils.sh; DRY_RUN=false; INSTALL_RESULTS=("SUCCESS:nmap" "SKIPPED:tool2"); print_summary 2>&1'); then
+        test_log "FAIL: print_summary crashed on success case under set -e: ${out}"
+        return 1
+    fi
+    echo "${out}" | grep -q "Total packages: 2" || { test_log "FAIL: unexpected print_summary output: ${out}"; return 1; }
+
+    # 2. Failure case should exit 1 (reporting failure) without arithmetic error
+    local rc=0
+    out=$(bash -c 'set -euo pipefail; source lib/utils.sh; DRY_RUN=false; INSTALL_RESULTS=("FAILED:badpkg"); print_summary 2>&1') || rc=$?
+    [[ ${rc} -eq 1 ]] || { test_log "FAIL: print_summary did not exit 1 on failed package (rc=${rc})"; return 1; }
+    echo "${out}" | grep -q "Failed: 1" || { test_log "FAIL: failure count missing: ${out}"; return 1; }
+
+    test_log "PASS: print_summary operates cleanly under set -euo pipefail"
+}
+
+test_case_insensitive_distro() {
+    test_log "Testing case-insensitive --distro flag..."
+    FORCE_DISTRO="ARCH" detect_distro >/dev/null 2>&1
+    [[ "${DISTRO}" == "arch" && "${PACKAGE_MANAGER}" == "pacman" ]] || { test_log "FAIL: uppercase ARCH not detected as arch/pacman"; return 1; }
+    test_log "PASS: case-insensitive --distro ARCH normalized to arch/pacman"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
     
     local failed=0
     
-    test_detect_distro || ((failed++))
-    test_utils_standalone_source || ((failed++))
-    test_invalid_option_handling || ((failed++))
-    test_load_tool_list || ((failed++))
-    test_column_parsing_void_pkg || ((failed++))
-    test_prompt_yes_no_default || ((failed++))
-    test_dry_run_unprivileged || ((failed++))
-    test_precheck_execution || ((failed++))
-    test_precheck_with_dry_run || ((failed++))
-    test_get_categories || ((failed++))
-    test_get_tools_in_category || ((failed++))
-    test_get_distro_pkg_name || ((failed++))
-    test_in_memory_package_cache || ((failed++))
-    test_multiple_distro_mappings || ((failed++))
-    test_arch_package_completeness || ((failed++))
-    test_build_from_source_recipe || ((failed++))
-    test_validate_tool || ((failed++))
-    test_validate_category || ((failed++))
-    test_list_all_tools || ((failed++))
+    test_detect_distro || ((failed+=1))
+    test_utils_standalone_source || ((failed+=1))
+    test_invalid_option_handling || ((failed+=1))
+    test_load_tool_list || ((failed+=1))
+    test_column_parsing_void_pkg || ((failed+=1))
+    test_prompt_yes_no_default || ((failed+=1))
+    test_dry_run_unprivileged || ((failed+=1))
+    test_precheck_execution || ((failed+=1))
+    test_precheck_with_dry_run || ((failed+=1))
+    test_get_categories || ((failed+=1))
+    test_get_tools_in_category || ((failed+=1))
+    test_get_distro_pkg_name || ((failed+=1))
+    test_in_memory_package_cache || ((failed+=1))
+    test_multiple_distro_mappings || ((failed+=1))
+    test_arch_package_completeness || ((failed+=1))
+    test_build_from_source_recipe || ((failed+=1))
+    test_validate_tool || ((failed+=1))
+    test_validate_category || ((failed+=1))
+    test_list_all_tools || ((failed+=1))
+    test_log_file_no_ansi || ((failed+=1))
+    test_cli_arg_validation || ((failed+=1))
+    test_print_summary_set_e || ((failed+=1))
+    test_case_insensitive_distro || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then

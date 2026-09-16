@@ -163,6 +163,9 @@ burpsuite|web|Web proxy and scanner|burpsuite||burpsuite|burpsuite|burpsuite||||
 
 All operations are logged to `/var/log/kali-tools-install.log` by default (automatically falls back to `/tmp/kali-tools-install-${UID}.log` when run without root privilege).
 
+- **Clean & Grep-Friendly**: Raw ANSI color escape sequences are automatically stripped when writing to disk and when stdout is redirected to a non-TTY pipe, keeping log files clean and readable in any pager or text editor.
+- **Interactive Colors**: Full ANSI color formatting is maintained during interactive terminal sessions.
+
 ```bash
 # View live logs
 tail -f /var/log/kali-tools-install.log

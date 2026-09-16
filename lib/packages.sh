@@ -12,7 +12,7 @@ load_tool_list() {
         exit 1
     fi
     
-    local line tool category desc debian_pkg arch_pkg fedora_pkg slackware_pkg opensuse_pkg gentoo_pkg alpine_pkg void_pkg deps
+    local tool category desc debian_pkg arch_pkg fedora_pkg slackware_pkg opensuse_pkg gentoo_pkg alpine_pkg void_pkg deps
     while IFS='|' read -r tool category desc debian_pkg arch_pkg fedora_pkg slackware_pkg opensuse_pkg gentoo_pkg alpine_pkg void_pkg deps; do
         [[ "${tool}" =~ ^#.*$ ]] && continue
         [[ -z "${tool}" ]] && continue

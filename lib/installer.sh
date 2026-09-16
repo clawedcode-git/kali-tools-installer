@@ -25,15 +25,30 @@ parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
             --distro)
-                FORCE_DISTRO="$2"
+                if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+                    error "Option $1 requires an argument"
+                    print_help
+                    exit 1
+                fi
+                FORCE_DISTRO="${2,,}"
                 export FORCE_DISTRO
                 shift 2
                 ;;
             --categories)
+                if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+                    error "Option $1 requires an argument"
+                    print_help
+                    exit 1
+                fi
                 IFS=',' read -ra SELECTED_CATEGORIES <<< "$2"
                 shift 2
                 ;;
             --tools)
+                if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+                    error "Option $1 requires an argument"
+                    print_help
+                    exit 1
+                fi
                 IFS=',' read -ra SELECTED_TOOLS <<< "$2"
                 shift 2
                 ;;
@@ -53,6 +68,11 @@ parse_args() {
                 shift
                 ;;
             --log-file)
+                if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+                    error "Option $1 requires an argument"
+                    print_help
+                    exit 1
+                fi
                 LOG_FILE="$2"
                 export LOG_FILE
                 shift 2
@@ -97,7 +117,7 @@ Options:
     --precheck              Check package availability in repos (no install)
     --help, -h              Show this help
 
-Categories: $(get_categories | tr '\n' ', ' | sed 's/, $//')
+Categories: $(get_categories | paste -sd, -)
 
 Examples:
     sudo $(basename "$0")                          # Interactive
@@ -176,7 +196,7 @@ select_categories_interactive() {
     
     IFS=',' read -ra selections <<< "${input}"
     for sel in "${selections[@]}"; do
-        sel=$(echo "${sel}" | xargs)
+        sel="${sel//[[:space:]]/}"
         if [[ "${sel}" =~ ^[0-9]+$ ]] && [[ ${sel} -ge 1 ]] && [[ ${sel} -le ${#categories[@]} ]]; then
             local cat="${categories[$((sel-1))]}"
             local -a cat_tools=()
@@ -204,7 +224,7 @@ select_tools_interactive() {
     
     IFS=',' read -ra selections <<< "${input}"
     for sel in "${selections[@]}"; do
-        sel=$(echo "${sel}" | xargs)
+        sel="${sel//[[:space:]]/}"
         if [[ "${sel}" =~ ^[0-9]+$ ]] && [[ ${sel} -ge 1 ]] && [[ ${sel} -le ${#all_tools[@]} ]]; then
             TOOLS_TO_INSTALL+=("${all_tools[$((sel-1))]}")
         fi

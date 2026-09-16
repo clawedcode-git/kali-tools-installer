@@ -7,12 +7,14 @@ detect_distro() {
     local id_like=""
     
     if [[ -n "${FORCE_DISTRO:-}" ]]; then
-        id="${FORCE_DISTRO}"
+        id="${FORCE_DISTRO,,}"
         warn "Forcing distribution: ${id}"
     elif [[ -f "${os_release}" ]]; then
-        source "${os_release}"
+        source "${os_release}" 2>/dev/null || true
         id="${ID:-}"
+        id="${id,,}"
         id_like="${ID_LIKE:-}"
+        id_like="${id_like,,}"
         debug "Detected ID: ${id}, ID_LIKE: ${id_like}"
     else
         error "Cannot detect distribution: ${os_release} not found"
