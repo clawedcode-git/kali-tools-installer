@@ -125,3 +125,12 @@
 # Options: true, false
 # Default: false
 # uninstall = false
+
+# -----------------------------------------------------------------------------
+# Export Availability / Installation Report
+# -----------------------------------------------------------------------------
+# Export precheck or installation execution results to a JSON or CSV file.
+# Format is determined by file extension (.json or .csv).
+# Default: empty (no report file exported)
+# export_report = /var/log/kali-tools-report.json
+

@@ -17,6 +17,7 @@ parse_args() {
     declare -g UNINSTALL="${UNINSTALL:-false}"
     declare -g CONFIG_FILE="${CONFIG_FILE:-}"
     declare -g NO_TUI="${NO_TUI:-false}"
+    declare -g EXPORT_REPORT_FILE="${EXPORT_REPORT_FILE:-}"
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -142,6 +143,26 @@ parse_args() {
                 export NO_TUI
                 shift
                 ;;
+            --export-report)
+                if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+                    error "Option $1 requires a file path argument"
+                    print_help
+                    exit 1
+                fi
+                EXPORT_REPORT_FILE="$2"
+                export EXPORT_REPORT_FILE
+                shift 2
+                ;;
+            --export-report=*)
+                EXPORT_REPORT_FILE="${1#--export-report=}"
+                if [[ -z "${EXPORT_REPORT_FILE}" ]]; then
+                    error "Option --export-report requires a file path"
+                    print_help
+                    exit 1
+                fi
+                export EXPORT_REPORT_FILE
+                shift
+                ;;
             --help|-h)
                 SHOW_HELP=true
                 shift
@@ -154,12 +175,12 @@ parse_args() {
         esac
     done
     
-    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL CONFIG_FILE NO_TUI LIST_INSTALLED
+    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL CONFIG_FILE NO_TUI LIST_INSTALLED EXPORT_REPORT_FILE
 }
 
 print_help() {
     load_tool_list >/dev/null 2>&1 || true
-    cat << EOF
+    cat <<EOF
 Usage: $(basename "$0") [OPTIONS]
 
 Options:
@@ -177,25 +198,31 @@ Options:
     --no-tui, --plain       Disable ASCII banner styling and BBS interactive menus
     --log-file <path>       Custom log location
     --list-installed        List installed Kali tools
-    --precheck              Check package availability in repos (no install)
+    --precheck              Check package availability (official/AUR/pipx/BlackArch)
+    --export-report <path>  Export availability/install report to JSON or CSV file
     --help, -h              Show this help
+
+Install tiers (Arch/CachyOS): official repos → AUR → pipx/pip → BlackArch → source build
 
 Presets: $(get_presets | paste -sd, -)
 Categories: $(get_categories | paste -sd, -)
 
 Examples:
-    sudo $(basename "$0")                          # Interactive
-    sudo $(basename "$0") --preset top10 --yes     # Install Top 10 Kali tools
-    sudo $(basename "$0") --preset headless --yes  # Install headless CLI tools
-    sudo $(basename "$0") --config ~/.config/kali-installer/config # Custom config file
-    sudo $(basename "$0") --distro arch --yes      # Non-interactive Arch
-    sudo $(basename "$0") --distro arch --enable-blackarch # With BlackArch repos
-    sudo $(basename "$0") --distro slackware --yes # Non-interactive Slackware
-    sudo $(basename "$0") --precheck --distro arch # Check package availability
+    sudo $(basename "$0")                                        # Interactive
+    sudo $(basename "$0") --preset top10 --yes                  # Install Top 10 Kali tools
+    sudo $(basename "$0") --preset headless --yes               # Install headless CLI tools
+    sudo $(basename "$0") --config ~/.config/kali-installer/config  # Custom config file
+    sudo $(basename "$0") --distro arch --yes                   # Non-interactive Arch
+    sudo $(basename "$0") --distro arch --enable-blackarch      # With BlackArch repos
+    sudo $(basename "$0") --distro slackware --yes              # Non-interactive Slackware
+    sudo $(basename "$0") --precheck --distro arch              # Check package availability
+    sudo $(basename "$0") --precheck --export-report /tmp/report.json  # Export precheck as JSON
+    sudo $(basename "$0") --precheck --export-report /tmp/report.csv   # Export precheck as CSV
     sudo $(basename "$0") --categories web,vuln --yes
     sudo $(basename "$0") --tools nmap,metasploit-framework --dry-run
 EOF
 }
+
 
 select_installation_scope() {
     if [[ -n "${SELECTED_PRESET:-}" ]]; then
@@ -546,12 +573,114 @@ run_aur_cmd() {
     fi
 }
 
+
+# ---------------------------------------------------------------------------
+# Tier helpers: pipx / BlackArch
+# ---------------------------------------------------------------------------
+
+get_pipx() {
+    if command -v pipx &>/dev/null; then
+        echo "pipx"
+    elif command -v pip3 &>/dev/null; then
+        echo "pip3"
+    else
+        echo ""
+    fi
+}
+
+install_via_pipx() {
+    local tool="$1"
+    local pip_pkg="$2"
+    [[ -z "${pip_pkg}" ]] && return 1
+    
+    local pip_cmd
+    pip_cmd=$(get_pipx)
+    [[ -z "${pip_cmd}" ]] && { warn "No pipx or pip3 found; cannot install ${tool} via pip"; return 1; }
+    
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        if [[ "${pip_cmd}" == "pipx" ]]; then
+            info "[DRY RUN] pipx install ${pip_pkg}"
+        else
+            info "[DRY RUN] pip3 install --user ${pip_pkg}"
+        fi
+        success "Installed (dry run): ${tool} (${pip_pkg}) via ${pip_cmd}"
+        INSTALL_RESULTS+=("SUCCESS:${tool} (pipx/pip)")
+        return 0
+    fi
+    
+    local pip_res=0
+    info "Installing ${tool} (${pip_pkg}) via ${pip_cmd}..."
+    if [[ "${pip_cmd}" == "pipx" ]]; then
+        pipx install "${pip_pkg}" 2>&1 | tee -a "${LOG_FILE}" || pip_res=$?
+    else
+        # PEP 668: try --break-system-packages first, fall back to --user
+        local pip_flags=()
+        if pip3 install --help 2>/dev/null | grep -q -- '--break-system-packages'; then
+            pip_flags=(--break-system-packages)
+        else
+            pip_flags=(--user)
+        fi
+        pip3 install "${pip_flags[@]}" "${pip_pkg}" 2>&1 | tee -a "${LOG_FILE}" || pip_res=$?
+    fi
+    
+    if [[ ${pip_res} -eq 0 ]]; then
+        success "Installed: ${tool} (${pip_pkg}) via ${pip_cmd}"
+        INSTALL_RESULTS+=("SUCCESS:${tool} (pipx/pip)")
+        return 0
+    fi
+    warn "pip/pipx install of ${tool} (${pip_pkg}) failed (exit ${pip_res})"
+    return 1
+}
+
+auto_enable_blackarch_if_needed() {
+    # Returns 0 if BlackArch is already enabled or we successfully enable it
+    if grep -q '\[blackarch\]' /etc/pacman.conf 2>/dev/null; then
+        return 0
+    fi
+    
+    if [[ "${ENABLE_BLACKARCH}" == "true" ]]; then
+        setup_blackarch
+        return $?
+    fi
+    
+    # Prompt user once (or auto-accept with --yes)
+    if [[ "${ASSUME_YES}" == "true" ]]; then
+        warn "Tool requires BlackArch repo — enabling automatically (--yes)"
+        ENABLE_BLACKARCH=true
+        setup_blackarch
+        return $?
+    fi
+    
+    if [[ -t 0 && "${NO_TUI:-false}" != "true" ]]; then
+        if bbs_confirm_dialog "BlackArch Required" "Enable BlackArch repo to install this tool?"; then
+            ENABLE_BLACKARCH=true
+            setup_blackarch
+            return $?
+        fi
+    else
+        if prompt_yes_no "Tool requires BlackArch repo. Enable it now?" "y"; then
+            ENABLE_BLACKARCH=true
+            setup_blackarch
+            return $?
+        fi
+    fi
+    
+    warn "BlackArch repo not enabled — skipping BlackArch-only tool"
+    return 1
+}
+
+# ---------------------------------------------------------------------------
+# install_package — 5-tier fallback: native → AUR → pipx → BlackArch → source
+# ---------------------------------------------------------------------------
+
 install_package() {
     local tool="$1"
     local pkg_name
     pkg_name=$(get_distro_pkg_name "${tool}")
     
     local result=0
+    
+    # ── Tier 1: Native package manager ─────────────────────────────────────
     if [[ -n "${pkg_name}" ]]; then
         debug "Installing ${tool} (${pkg_name}) via ${PACKAGE_MANAGER}"
         case "${PACKAGE_MANAGER}" in
@@ -588,8 +717,10 @@ install_package() {
         result=1
     fi
     
-    # If native pacman failed on Arch, try AUR helper (yay / paru)
-    if [[ ${result} -ne 0 && "${PACKAGE_MANAGER}" == "pacman" && -n "${pkg_name}" ]]; then
+    [[ ${result} -eq 0 ]] && { success "Installed: ${tool} (${pkg_name})"; INSTALL_RESULTS+=("SUCCESS:${tool}"); return 0; }
+    
+    # ── Tier 2: AUR helper (Arch only) ─────────────────────────────────────
+    if [[ "${PACKAGE_MANAGER}" == "pacman" && -n "${pkg_name}" ]]; then
         local aur_helper
         aur_helper=$(get_aur_helper)
         if [[ -n "${aur_helper}" ]]; then
@@ -604,33 +735,60 @@ install_package() {
         fi
     fi
     
-    # If native package install failed or was unmapped, attempt source build fallback
-    if [[ ${result} -ne 0 ]]; then
-        local build_chk
-        build_chk=$(check_build_from_source "${tool}" "${pkg_name}" || true)
-        if [[ "${build_chk}" == BUILDABLE:* ]]; then
-            info "Attempting source build fallback for ${tool}..."
-            if build_from_source "${tool}"; then
-                success "Installed from source: ${tool}"
-                INSTALL_RESULTS+=("SUCCESS:${tool} (source)")
-                return 0
+    # ── Tier 3: pipx / pip3 ────────────────────────────────────────────────
+    local pip_pkg
+    pip_pkg=$(get_tool_pip_pkg "${tool}")
+    if [[ -n "${pip_pkg}" ]]; then
+        if install_via_pipx "${tool}" "${pip_pkg}"; then
+            return 0
+        fi
+    fi
+    
+    # ── Tier 4: BlackArch repo (Arch only) ─────────────────────────────────
+    if [[ "${PACKAGE_MANAGER}" == "pacman" ]]; then
+        local ba_pkg
+        ba_pkg=$(get_tool_blackarch_pkg "${tool}")
+        if [[ -n "${ba_pkg}" ]]; then
+            if auto_enable_blackarch_if_needed; then
+                info "Installing ${tool} (${ba_pkg}) from BlackArch..."
+                local ba_res=0
+                run_cmd pacman -S --noconfirm --needed "${ba_pkg}" || ba_res=$?
+                if [[ ${ba_res} -eq 0 ]]; then
+                    success "Installed: ${tool} (${ba_pkg}) via BlackArch"
+                    INSTALL_RESULTS+=("SUCCESS:${tool} (blackarch)")
+                    return 0
+                fi
+                warn "BlackArch install of ${tool} (${ba_pkg}) failed"
             fi
         fi
     fi
     
-    if [[ ${result} -eq 0 ]]; then
-        success "Installed: ${tool} (${pkg_name})"
-        INSTALL_RESULTS+=("SUCCESS:${tool}")
-    elif [[ -z "${pkg_name}" ]]; then
+    # ── Tier 5: Source build ────────────────────────────────────────────────
+    local build_chk
+    build_chk=$(check_build_from_source "${tool}" "${pkg_name}" || true)
+    if [[ "${build_chk}" == BUILDABLE:* ]]; then
+        info "Attempting source build fallback for ${tool}..."
+        if build_from_source "${tool}"; then
+            success "Installed from source: ${tool}"
+            INSTALL_RESULTS+=("SUCCESS:${tool} (source)")
+            return 0
+        fi
+    fi
+    
+    # ── All tiers exhausted ─────────────────────────────────────────────────
+    local pip_mapped ba_mapped
+    pip_mapped=$(get_tool_pip_pkg "${tool}")
+    ba_mapped=$(get_tool_blackarch_pkg "${tool}")
+    if [[ -z "${pkg_name}" && -z "${pip_mapped}" && -z "${ba_mapped}" ]]; then
         warn "No package mapping for ${tool} on ${DISTRO_FAMILY}"
         INSTALL_RESULTS+=("SKIPPED:${tool} (no mapping)")
     else
-        error "Failed: ${tool} (${pkg_name})"
+        error "Failed: ${tool} — all install tiers exhausted"
         INSTALL_RESULTS+=("FAILED:${tool}")
     fi
-    
-    return ${result}
+    return 1
 }
+
 
 run_cmd() {
     if [[ "${DRY_RUN}" == "true" ]]; then
@@ -885,9 +1043,14 @@ remove_source_tool() {
     local tool="$1"
     info "Removing source files for ${tool}..."
     
+    # Determine pip_pkg mapping for cleanup
+    local pip_pkg
+    pip_pkg=$(get_tool_pip_pkg "${tool}")
+    
     if [[ "${DRY_RUN}" == "true" ]]; then
         [[ -f "/usr/local/bin/${tool}" || -L "/usr/local/bin/${tool}" ]] && info "[DRY RUN] rm -f /usr/local/bin/${tool}"
         [[ -d "/opt/${tool}" ]] && info "[DRY RUN] rm -rf /opt/${tool}"
+        [[ -n "${pip_pkg}" ]] && info "[DRY RUN] pipx uninstall ${pip_pkg} (or pip3 uninstall ${pip_pkg})"
         INSTALL_RESULTS+=("REMOVED:${tool} (source)")
         return 0
     fi
@@ -899,15 +1062,25 @@ remove_source_tool() {
     if [[ -d "/opt/${tool}" ]]; then
         rm -rf "/opt/${tool}" && removed=true
     fi
-    if command -v pip3 &>/dev/null; then
+    
+    # Uninstall via pipx if available, otherwise pip3
+    if [[ -n "${pip_pkg}" ]]; then
+        if command -v pipx &>/dev/null; then
+            pipx uninstall "${pip_pkg}" 2>/dev/null && removed=true || true
+        elif command -v pip3 &>/dev/null; then
+            pip3 uninstall -y "${pip_pkg}" 2>/dev/null && removed=true || true
+        fi
+    elif command -v pip3 &>/dev/null; then
+        # Legacy: try by tool name
         pip3 uninstall -y "${tool}" 2>/dev/null || true
     fi
     
     if [[ "${removed}" == "true" ]]; then
-        success "Removed source files for ${tool}"
+        success "Removed: ${tool}"
         INSTALL_RESULTS+=("REMOVED:${tool} (source)")
     fi
 }
+
 
 run_uninstallation() {
     info "Starting uninstallation of ${#TOOLS_TO_INSTALL[@]} tools..."
@@ -1034,53 +1207,82 @@ print_uninstall_summary() {
         echo
         info "Dry run complete. No packages or files were removed."
     fi
+    type export_report &>/dev/null && export_report || true
 }
 
 check_package_available() {
     local pkg_name="$1"
-    local available=false
+    local tool="${2:-}"   # optional: used to look up pip_pkg and blackarch_pkg
     
     case "${PACKAGE_MANAGER}" in
         pacman)
             if pacman -Si "${pkg_name}" &>/dev/null; then
-                available=true
-            else
-                local aur_helper
-                aur_helper=$(get_aur_helper || true)
-                if [[ -n "${aur_helper}" ]] && "${aur_helper}" -Si "${pkg_name}" &>/dev/null; then
-                    available=true
-                fi
+                echo "OFFICIAL"; return 0
+            fi
+            local aur_helper
+            aur_helper=$(get_aur_helper || true)
+            if [[ -n "${aur_helper}" ]] && "${aur_helper}" -Si "${pkg_name}" &>/dev/null; then
+                echo "AUR"; return 0
             fi
             ;;
         apt)
-            apt-cache show "${pkg_name}" &>/dev/null && available=true
+            if apt-cache show "${pkg_name}" &>/dev/null; then
+                echo "OFFICIAL"; return 0
+            fi
             ;;
         dnf)
-            { rpm -q "${pkg_name}" &>/dev/null || dnf info "${pkg_name}" &>/dev/null || dnf repoquery "${pkg_name}" &>/dev/null; } && available=true
+            if { rpm -q "${pkg_name}" &>/dev/null || dnf info "${pkg_name}" &>/dev/null || dnf repoquery "${pkg_name}" &>/dev/null; }; then
+                echo "OFFICIAL"; return 0
+            fi
             ;;
         zypper)
-            zypper info "${pkg_name}" &>/dev/null && available=true
+            if zypper info "${pkg_name}" &>/dev/null; then
+                echo "OFFICIAL"; return 0
+            fi
             ;;
         slackpkg)
-            slackpkg search "${pkg_name}" 2>/dev/null | grep -q "${pkg_name}" && available=true
+            if slackpkg search "${pkg_name}" 2>/dev/null | grep -q "${pkg_name}"; then
+                echo "OFFICIAL"; return 0
+            fi
             ;;
         emerge)
-            emerge --search "%@^${pkg_name}$" &>/dev/null && available=true
+            if emerge --search "%@^${pkg_name}$" &>/dev/null; then
+                echo "OFFICIAL"; return 0
+            fi
             ;;
         apk)
-            apk info "${pkg_name}" &>/dev/null && available=true
+            if apk info "${pkg_name}" &>/dev/null; then
+                echo "OFFICIAL"; return 0
+            fi
             ;;
         xbps)
-            xbps-query -R "${pkg_name}" &>/dev/null && available=true
+            if xbps-query -R "${pkg_name}" &>/dev/null; then
+                echo "OFFICIAL"; return 0
+            fi
             ;;
     esac
     
-    if [[ "${available}" == "true" ]]; then
-        return 0
-    else
-        return 1
+    # pipx/pip tier — if tool has a pip_pkg mapping, it's installable via PyPI
+    if [[ -n "${tool}" ]]; then
+        local pip_pkg
+        pip_pkg=$(get_tool_pip_pkg "${tool}")
+        if [[ -n "${pip_pkg}" ]]; then
+            echo "PIPX"; return 0
+        fi
+        
+        # BlackArch tier — Arch only, if tool has a blackarch_pkg mapping
+        if [[ "${PACKAGE_MANAGER}" == "pacman" ]]; then
+            local ba_pkg
+            ba_pkg=$(get_tool_blackarch_pkg "${tool}")
+            if [[ -n "${ba_pkg}" ]]; then
+                echo "BLACKARCH"; return 0
+            fi
+        fi
     fi
+    
+    echo "MISSING"; return 1
 }
+
 
 check_build_from_source() {
     local tool="$1"
@@ -1399,13 +1601,37 @@ build_from_source() {
 }
 
 run_precheck() {
-    info "=== Package Availability Precheck ==="
+    info "=== Package Availability Precheck (4-tier) ==="
     info "Distribution: ${DISTRO} (${DISTRO_FAMILY})"
     info "Package Manager: ${PACKAGE_MANAGER}"
+    info "Tiers: official repos → AUR → pipx/pip → BlackArch"
     echo
+    
+    # PRECHECK_RESULTS entries: "TIER|tool|category|pkg"
+    declare -ga PRECHECK_RESULTS=()
     
     update_package_db
     
+    declare -g CURRENT_PRECHECK_TIER=""
+    _precheck_tool() {
+        local tool="$1"
+        local category="${2:-unknown}"
+        local pkg_name
+        pkg_name=$(get_distro_pkg_name "${tool}")
+        
+        local tier
+        if [[ -z "${pkg_name}" ]]; then
+            tier=$(check_package_available "" "${tool}" || true)
+            # check_package_available with empty pkg still checks pip/blackarch via tool arg
+        else
+            tier=$(check_package_available "${pkg_name}" "${tool}" || true)
+        fi
+        
+        CURRENT_PRECHECK_TIER="${tier}"
+        PRECHECK_RESULTS+=("${tier}|${tool}|${category}|${pkg_name:-}")
+    }
+    
+    # ── Preset mode ─────────────────────────────────────────────────────────
     if [[ -n "${SELECTED_PRESET:-}" ]]; then
         if ! validate_preset "${SELECTED_PRESET}"; then
             error "Unknown preset: ${SELECTED_PRESET}"
@@ -1415,60 +1641,48 @@ run_precheck() {
         local -a preset_tools=()
         read -ra preset_tools <<< "$(get_tools_in_preset "${SELECTED_PRESET}")"
         info "Checking preset '${SELECTED_PRESET}' (${#preset_tools[@]} tools)..."
-        local p_available=0
-        local p_missing=0
-        local p_buildable=0
-        local missing_tools=()
+        local p_official=0 p_aur=0 p_pipx=0 p_blackarch=0 p_missing=0
+        
         for tool in "${preset_tools[@]}"; do
-            local pkg_name
-            pkg_name=$(get_distro_pkg_name "${tool}")
-            if [[ -z "${pkg_name}" ]]; then
-                p_missing=$((p_missing + 1))
-                missing_tools+=("${tool} (no package mapping)")
-                continue
-            fi
-            if check_package_available "${pkg_name}"; then
-                p_available=$((p_available + 1))
-            else
-                p_missing=$((p_missing + 1))
-                local build_res
-                build_res=$(check_build_from_source "${tool}" "${pkg_name}" || true)
-                if [[ "${build_res}" == BUILDABLE:* ]]; then
-                    p_buildable=$((p_buildable + 1))
-                    missing_tools+=("${tool} -> ${pkg_name} [BUILDABLE]")
-                else
-                    missing_tools+=("${tool} -> ${pkg_name}")
-                fi
-            fi
+            local cat
+            cat=$(get_tool_category "${tool}")
+            _precheck_tool "${tool}" "${cat}"
+            local tier="${CURRENT_PRECHECK_TIER}"
+            case "${tier}" in
+                OFFICIAL)  p_official=$((p_official + 1)); debug "  [OFFICIAL]  ${tool}" ;;
+                AUR)       p_aur=$((p_aur + 1));           debug "  [AUR]       ${tool}" ;;
+                PIPX)      p_pipx=$((p_pipx + 1));         debug "  [PIPX]      ${tool}" ;;
+                BLACKARCH) p_blackarch=$((p_blackarch + 1)); debug "  [BLACKARCH] ${tool}" ;;
+                *)         p_missing=$((p_missing + 1));   debug "  [MISSING]   ${tool}" ;;
+            esac
         done
+        
+        local p_avail=$(( p_official + p_aur + p_pipx + p_blackarch ))
         local p_pct=0
-        [[ ${#preset_tools[@]} -gt 0 ]] && p_pct=$((p_available * 100 / ${#preset_tools[@]}))
+        [[ ${#preset_tools[@]} -gt 0 ]] && p_pct=$((p_avail * 100 / ${#preset_tools[@]}))
+        
         echo
         info "=== Precheck Summary (Preset: ${SELECTED_PRESET}) ==="
         info "Total tools: ${#preset_tools[@]}"
-        success "Available in repos: ${p_available} (${p_pct}%)"
-        [[ ${p_missing} -gt 0 ]] && error "Missing from repos: ${p_missing}"
-        [[ ${p_buildable} -gt 0 ]] && warn "Potentially buildable from source: ${p_buildable}"
+        success "Available in repos: ${p_avail} (${p_pct}%)"
+        info "Official repos:     ${p_official}"
+        [[ ${p_aur} -gt 0 ]]       && info  "AUR:                ${p_aur}"
+        [[ ${p_pipx} -gt 0 ]]      && info  "pip/pipx (PyPI):    ${p_pipx}"
+        [[ ${p_blackarch} -gt 0 ]] && warn  "BlackArch repo:     ${p_blackarch}"
+        [[ ${p_missing} -gt 0 ]]   && error "Missing/unavail:    ${p_missing}"
+        success "TOTAL AVAILABLE:    ${p_avail} / ${#preset_tools[@]} (${p_pct}%)"
+        
         local -a p_deps=()
         mapfile -t p_deps < <(get_all_deps_for_tools "${preset_tools[@]}")
-        if [[ ${#p_deps[@]} -gt 0 ]]; then
-            info "Runtime dependencies required (${#p_deps[@]}): ${p_deps[*]}"
-        fi
-        if [[ ${#missing_tools[@]} -gt 0 ]]; then
-            info "Missing packages:"
-            for mt in "${missing_tools[@]}"; do
-                info "  - ${mt}"
-            done
-        fi
+        [[ ${#p_deps[@]} -gt 0 ]] && info "Runtime deps required (${#p_deps[@]}): ${p_deps[*]}"
+        
+        export_report
         return 0
     fi
     
-    local total_tools=0
-    local total_available=0
-    local total_missing=0
-    local total_buildable=0
+    # ── All-categories mode ──────────────────────────────────────────────────
+    local total_tools=0 total_official=0 total_aur=0 total_pipx=0 total_blackarch=0 total_missing=0
     
-    # Get categories to check - use selected if specified, otherwise all
     local categories=()
     if [[ ${#SELECTED_CATEGORIES[@]} -gt 0 ]]; then
         categories=("${SELECTED_CATEGORIES[@]}")
@@ -1481,90 +1695,135 @@ run_precheck() {
         local -a tools=()
         read -ra tools <<< "$(get_tools_in_category "${cat}")"
         all_checked_tools+=("${tools[@]}")
+        
         local cat_total=${#tools[@]}
-        local cat_available=0
-        local cat_missing=0
-        local cat_buildable=0
-        local missing_tools=()
+        local cat_official=0 cat_aur=0 cat_pipx=0 cat_blackarch=0 cat_missing=0
+        local -a cat_missing_list=()
         
         total_tools=$((total_tools + cat_total))
-        
         info "Checking category: ${cat} (${cat_total} tools)"
         
         for tool in "${tools[@]}"; do
-            local pkg_name
-            pkg_name=$(get_distro_pkg_name "${tool}")
-            
-            if [[ -z "${pkg_name}" ]]; then
-                cat_missing=$((cat_missing + 1))
-                total_missing=$((total_missing + 1))
-                missing_tools+=("${tool} (no package mapping)")
-                continue
-            fi
-            
-            if check_package_available "${pkg_name}"; then
-                cat_available=$((cat_available + 1))
-                total_available=$((total_available + 1))
-                debug "  [AVAILABLE] ${tool} -> ${pkg_name}"
-            else
-                cat_missing=$((cat_missing + 1))
-                total_missing=$((total_missing + 1))
-                missing_tools+=("${tool} -> ${pkg_name}")
-                
-                # Check if buildable from source
-                local build_result
-                build_result=$(check_build_from_source "${tool}" "${pkg_name}" || true)
-                if [[ "${build_result}" == BUILDABLE:* ]]; then
-                    cat_buildable=$((cat_buildable + 1))
-                    total_buildable=$((total_buildable + 1))
-                    debug "  [MISSING but BUILDABLE] ${tool} -> ${pkg_name} (${build_result#BUILDABLE:})"
-                else
-                    debug "  [MISSING] ${tool} -> ${pkg_name}"
-                fi
-            fi
+            _precheck_tool "${tool}" "${cat}"
+            local tier="${CURRENT_PRECHECK_TIER}"
+            case "${tier}" in
+                OFFICIAL)  cat_official=$((cat_official + 1)); total_official=$((total_official + 1)) ;;
+                AUR)       cat_aur=$((cat_aur + 1));           total_aur=$((total_aur + 1)) ;;
+                PIPX)      cat_pipx=$((cat_pipx + 1));         total_pipx=$((total_pipx + 1));
+                           cat_missing_list+=("  [PIPX]      ${tool} → pip install $(get_tool_pip_pkg "${tool}")") ;;
+                BLACKARCH) cat_blackarch=$((cat_blackarch + 1)); total_blackarch=$((total_blackarch + 1));
+                           cat_missing_list+=("  [BLACKARCH] ${tool} → blackarch/$(get_tool_blackarch_pkg "${tool}")") ;;
+                *)         cat_missing=$((cat_missing + 1));   total_missing=$((total_missing + 1));
+                           cat_missing_list+=("  [MISSING]   ${tool}") ;;
+            esac
         done
         
+        local cat_avail=$(( cat_official + cat_aur + cat_pipx + cat_blackarch ))
         local cat_pct=0
-        if [[ ${cat_total} -gt 0 ]]; then
-            cat_pct=$((cat_available * 100 / cat_total))
-        fi
+        [[ ${cat_total} -gt 0 ]] && cat_pct=$((cat_avail * 100 / cat_total))
         
         echo
-        info "  Category: ${cat}"
-        info "    Total: ${cat_total} | Available: ${cat_available} (${cat_pct}%) | Missing: ${cat_missing}"
-        if [[ ${cat_buildable} -gt 0 ]]; then
-            info "    Buildable from source: ${cat_buildable}"
-        fi
-        
-        if [[ ${#missing_tools[@]} -gt 0 && ${cat_missing} -le 20 ]]; then
-            info "    Missing packages:"
-            for mt in "${missing_tools[@]}"; do
-                info "      - ${mt}"
+        info "  [${cat}] Total:${cat_total}  Official:${cat_official}  AUR:${cat_aur}  PIPX:${cat_pipx}  BlackArch:${cat_blackarch}  Missing:${cat_missing}  (${cat_pct}% available)"
+        if [[ ${#cat_missing_list[@]} -gt 0 && ${#cat_missing_list[@]} -le 30 ]]; then
+            for ml in "${cat_missing_list[@]}"; do
+                info "  ${ml}"
             done
-        elif [[ ${cat_missing} -gt 20 ]]; then
-            info "    Missing packages: ${cat_missing} (use --verbose to list all)"
         fi
     done
     
+    local total_avail=$(( total_official + total_aur + total_pipx + total_blackarch ))
     local total_pct=0
-    if [[ ${total_tools} -gt 0 ]]; then
-        total_pct=$((total_available * 100 / total_tools))
-    fi
+    [[ ${total_tools} -gt 0 ]] && total_pct=$((total_avail * 100 / total_tools))
     
     echo
-    info "=== Precheck Summary ==="
-    info "Total tools: ${total_tools}"
-    success "Available in repos: ${total_available} (${total_pct}%)"
-    error "Missing from repos: ${total_missing}"
-    if [[ ${total_buildable} -gt 0 ]]; then
-        warn "Potentially buildable from source: ${total_buildable}"
-    fi
+    info "=== Precheck Summary (${DISTRO_FAMILY}) ==="
+    info "Total tools:          ${total_tools}"
+    success "Official repos:     ${total_official} ($(( total_official * 100 / (total_tools > 0 ? total_tools : 1) ))%)"
+    info     "AUR:                ${total_aur} ($(( total_aur * 100 / (total_tools > 0 ? total_tools : 1) ))%)"
+    info     "pip/pipx (PyPI):    ${total_pipx} ($(( total_pipx * 100 / (total_tools > 0 ? total_tools : 1) ))%)"
+    warn     "BlackArch repo:     ${total_blackarch} ($(( total_blackarch * 100 / (total_tools > 0 ? total_tools : 1) ))%)"
+    error    "Missing/unavail:    ${total_missing} ($(( total_missing * 100 / (total_tools > 0 ? total_tools : 1) ))%)"
+    success "TOTAL AVAILABLE:    ${total_avail} / ${total_tools} (${total_pct}%)"
+    
     local -a cat_deps=()
     mapfile -t cat_deps < <(get_all_deps_for_tools "${all_checked_tools[@]}")
-    if [[ ${#cat_deps[@]} -gt 0 ]]; then
-        info "Runtime dependencies identified (${#cat_deps[@]}): ${cat_deps[*]}"
-    fi
+    [[ ${#cat_deps[@]} -gt 0 ]] && info "Runtime deps identified (${#cat_deps[@]}): ${cat_deps[*]}"
+    
     echo
-    info "Use --dry-run --yes to see installation plan without building"
-    info "For buildable packages, consider using AUR (Arch), COPR (Fedora), or manual compilation"
+    info "Use --dry-run --yes to see install plan without installing"
+    info "BlackArch tools install automatically when --enable-blackarch is set or prompted"
+    info "pip/pipx tools install via pipx or pip3 as a fallback tier"
+    
+    export_report
+}
+
+# ---------------------------------------------------------------------------
+# export_report — write JSON or CSV availability/install report
+# ---------------------------------------------------------------------------
+
+export_report() {
+    [[ -z "${EXPORT_REPORT_FILE:-}" ]] && return 0
+    
+    local format="json"
+    [[ "${EXPORT_REPORT_FILE}" == *.csv ]] && format="csv"
+    
+    local timestamp
+    timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+    
+    local outdir
+    outdir=$(dirname "${EXPORT_REPORT_FILE}")
+    mkdir -p "${outdir}" 2>/dev/null || true
+    
+    # Determine source data: prefer PRECHECK_RESULTS, fall back to INSTALL_RESULTS
+    local -a data_entries=()
+    if [[ ${#PRECHECK_RESULTS[@]} -gt 0 ]]; then
+        data_entries=("${PRECHECK_RESULTS[@]}")
+    elif [[ ${#INSTALL_RESULTS[@]} -gt 0 ]]; then
+        # Convert INSTALL_RESULTS format to report format
+        for r in "${INSTALL_RESULTS[@]}"; do
+            local status="${r%%:*}"
+            local rest="${r#*:}"
+            local tname="${rest%% (*}"
+            local cat
+            cat=$(get_tool_category "${tname}" 2>/dev/null || echo "unknown")
+            local pkg
+            pkg=$(get_distro_pkg_name "${tname}" 2>/dev/null || echo "")
+            data_entries+=("${status}|${tname}|${cat}|${pkg}")
+        done
+    fi
+    
+    case "${format}" in
+        json)
+            {
+                printf '{\n'
+                printf '  "generated": "%s",\n' "${timestamp}"
+                printf '  "distro": "%s",\n' "${DISTRO:-unknown}"
+                printf '  "distro_family": "%s",\n' "${DISTRO_FAMILY:-unknown}"
+                printf '  "package_manager": "%s",\n' "${PACKAGE_MANAGER:-unknown}"
+                printf '  "dry_run": %s,\n' "${DRY_RUN:-false}"
+                printf '  "tools": [\n'
+                local first=true
+                for entry in "${data_entries[@]}"; do
+                    IFS='|' read -r tier tname cat pkg <<< "${entry}"
+                    [[ "${first}" == "true" ]] && first=false || printf ',\n'
+                    printf '    {"name": "%s", "category": "%s", "status": "%s", "package": "%s"}' \
+                        "${tname}" "${cat}" "${tier}" "${pkg}"
+                done
+                [[ "${first}" == "false" ]] && printf '\n'
+                printf '  ]\n'
+                printf '}\n'
+            } > "${EXPORT_REPORT_FILE}"
+            ;;
+        csv)
+            {
+                printf 'name,category,status,package\n'
+                for entry in "${data_entries[@]}"; do
+                    IFS='|' read -r tier tname cat pkg <<< "${entry}"
+                    printf '%s,%s,%s,%s\n' "${tname}" "${cat}" "${tier}" "${pkg}"
+                done
+            } > "${EXPORT_REPORT_FILE}"
+            ;;
+    esac
+    
+    success "Report exported → ${EXPORT_REPORT_FILE}"
 }

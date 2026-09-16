@@ -763,6 +763,95 @@ test_uninstall_empty_target_guard() {
     test_log "PASS: uninstallation empty target guard verified"
 }
 
+test_pip_and_blackarch_columns_parsing() {
+    test_log "Testing pip_pkg (col 13) and blackarch_pkg (col 14) parsing..."
+    load_tool_list
+    local pip_tool blackarch_tool
+    pip_tool=$(get_tool_pip_pkg "dnsrecon")
+    [[ "${pip_tool}" == "dnsrecon" ]] || { test_log "FAIL: expected dnsrecon pip_pkg 'dnsrecon', got '${pip_tool}'"; return 1; }
+    
+    blackarch_tool=$(get_tool_blackarch_pkg "openvas")
+    [[ "${blackarch_tool}" == "openvas" ]] || { test_log "FAIL: expected openvas blackarch_pkg 'openvas', got '${blackarch_tool}'"; return 1; }
+    test_log "PASS: pip_pkg and blackarch_pkg columns parsed correctly"
+}
+
+test_install_via_pipx_dry_run() {
+    test_log "Testing install_via_pipx in dry-run mode..."
+    local out
+    out=$(DRY_RUN=true install_via_pipx "dnsrecon" "dnsrecon" 2>&1)
+    echo "${out}" | grep -q "[DRY RUN]" || { test_log "FAIL: expected dry run message from install_via_pipx: ${out}"; return 1; }
+    echo "${out}" | grep -q "Installed (dry run): dnsrecon" || { test_log "FAIL: expected dry run success message: ${out}"; return 1; }
+    test_log "PASS: install_via_pipx dry-run verified"
+}
+
+test_check_package_available_tiers() {
+    test_log "Testing check_package_available multi-tier return values..."
+    local res
+    res=$(PACKAGE_MANAGER="pacman" check_package_available "nonexistent_xyz" "wfuzz" || true)
+    [[ "${res}" == "PIPX" ]] || { test_log "FAIL: expected PIPX tier for wfuzz, got '${res}'"; return 1; }
+    
+    res=$(PACKAGE_MANAGER="pacman" check_package_available "nonexistent_xyz" "openvas" || true)
+    [[ "${res}" == "BLACKARCH" ]] || { test_log "FAIL: expected BLACKARCH tier for openvas, got '${res}'"; return 1; }
+    
+    res=$(PACKAGE_MANAGER="pacman" check_package_available "nonexistent_xyz" "totally_fake_tool_123" || true)
+    [[ "${res}" == "MISSING" ]] || { test_log "FAIL: expected MISSING tier for unknown tool, got '${res}'"; return 1; }
+    test_log "PASS: check_package_available multi-tier resolution verified"
+}
+
+test_export_report_json() {
+    test_log "Testing --export-report JSON output format and fields..."
+    local report_file="/tmp/test_report_unit.json"
+    rm -f "${report_file}"
+    bash "${PROJECT_ROOT}/install.sh" --distro arch --categories web --precheck --export-report "${report_file}" >/dev/null 2>&1
+    [[ -f "${report_file}" ]] || { test_log "FAIL: JSON report file not created"; return 1; }
+    grep -q '"distro": "arch"' "${report_file}" || { test_log "FAIL: distro missing from JSON report"; rm -f "${report_file}"; return 1; }
+    grep -q '"tools": \[' "${report_file}" || { test_log "FAIL: tools array missing from JSON report"; rm -f "${report_file}"; return 1; }
+    grep -q '"name": "wfuzz"' "${report_file}" || { test_log "FAIL: tool entry missing from JSON report"; rm -f "${report_file}"; return 1; }
+    rm -f "${report_file}"
+    test_log "PASS: --export-report JSON output verified"
+}
+
+test_export_report_csv() {
+    test_log "Testing --export-report CSV output format and header..."
+    local report_file="/tmp/test_report_unit.csv"
+    rm -f "${report_file}"
+    bash "${PROJECT_ROOT}/install.sh" --distro arch --categories web --precheck --export-report "${report_file}" >/dev/null 2>&1
+    [[ -f "${report_file}" ]] || { test_log "FAIL: CSV report file not created"; return 1; }
+    local header
+    header=$(head -n 1 "${report_file}")
+    [[ "${header}" == "name,category,status,package" ]] || { test_log "FAIL: unexpected CSV header: ${header}"; rm -f "${report_file}"; return 1; }
+    grep -q "wfuzz,web,PIPX,wfuzz" "${report_file}" || { test_log "FAIL: tool row missing from CSV report"; rm -f "${report_file}"; return 1; }
+    rm -f "${report_file}"
+    test_log "PASS: --export-report CSV output verified"
+}
+
+test_export_report_cli_options() {
+    test_log "Testing --export-report CLI flag parsing and validation..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --export-report 2>&1 || true)
+    echo "${out}" | grep -q "Option --export-report requires a file path argument" || { test_log "FAIL: missing arg for --export-report not caught: ${out}"; return 1; }
+    
+    out=$(bash "${PROJECT_ROOT}/install.sh" --export-report= 2>&1 || true)
+    echo "${out}" | grep -q "Option --export-report requires a file path" || { test_log "FAIL: empty equal arg for --export-report not caught: ${out}"; return 1; }
+    test_log "PASS: --export-report CLI flag validation verified"
+}
+
+test_auto_enable_blackarch_logic() {
+    test_log "Testing auto_enable_blackarch_if_needed behavior..."
+    local out
+    out=$(ASSUME_YES=true DRY_RUN=true auto_enable_blackarch_if_needed 2>&1)
+    echo "${out}" | grep -q "enabling automatically" || { test_log "FAIL: expected auto-enable notice with ASSUME_YES: ${out}"; return 1; }
+    test_log "PASS: auto_enable_blackarch_if_needed logic verified"
+}
+
+test_remove_source_tool_pip_cleanup() {
+    test_log "Testing remove_source_tool pipx cleanup in dry-run mode..."
+    local out
+    out=$(DRY_RUN=true remove_source_tool "dnsrecon" 2>&1)
+    echo "${out}" | grep -q "pipx uninstall dnsrecon" || { test_log "FAIL: expected pipx uninstall in dry-run cleanup: ${out}"; return 1; }
+    test_log "PASS: remove_source_tool pipx cleanup verified"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -821,6 +910,14 @@ run_tests() {
     test_pip_break_system_packages_flag || ((failed+=1))
     test_load_tool_list_idempotent || ((failed+=1))
     test_uninstall_empty_target_guard || ((failed+=1))
+    test_pip_and_blackarch_columns_parsing || ((failed+=1))
+    test_install_via_pipx_dry_run || ((failed+=1))
+    test_check_package_available_tiers || ((failed+=1))
+    test_export_report_json || ((failed+=1))
+    test_export_report_csv || ((failed+=1))
+    test_export_report_cli_options || ((failed+=1))
+    test_auto_enable_blackarch_logic || ((failed+=1))
+    test_remove_source_tool_pip_cleanup || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then

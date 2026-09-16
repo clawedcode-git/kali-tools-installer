@@ -32,6 +32,7 @@ UNINSTALL="${UNINSTALL:-false}"
 NO_TUI="${NO_TUI:-false}"
 TOOLS_TO_INSTALL=()
 INSTALL_RESULTS=()
+EXPORT_REPORT_FILE="${EXPORT_REPORT_FILE:-}"
 
 log() {
     local level="$1"
@@ -218,6 +219,9 @@ load_config_file() {
                     NO_TUI=false
                 fi
                 ;;
+            export_report|report_file)
+                EXPORT_REPORT_FILE="${val}"
+                ;;
             *)
                 debug "Unknown configuration key: ${key}"
                 ;;
@@ -388,6 +392,7 @@ print_summary() {
         echo
         info "=== Dry Run Summary ==="
         info "Dry run complete. No packages were installed."
+        type export_report &>/dev/null && export_report || true
         return 0
     fi
     
@@ -417,8 +422,10 @@ print_summary() {
         for result in "${INSTALL_RESULTS[@]}"; do
             [[ "${result}" == FAILED:* ]] && error "  ${result#FAILED:}"
         done
+        type export_report &>/dev/null && export_report || true
         exit 1
     fi
     
     success "All packages installed successfully!"
+    type export_report &>/dev/null && export_report || true
 }

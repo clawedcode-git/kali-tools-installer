@@ -1,7 +1,7 @@
 # Kali Tools Installer
 
 [![CI](https://github.com/clawedcode-git/kali-tools-installer/actions/workflows/ci.yml/badge.svg)](https://github.com/clawedcode-git/kali-tools-installer/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/Tests-52%20Passing-brightgreen.svg)](#running-tests)
+[![Tests](https://img.shields.io/badge/Tests-60%20Passing-brightgreen.svg)](#running-tests)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Bash](https://img.shields.io/badge/Bash-4.0%2B-brightgreen.svg)](https://www.gnu.org/software/bash/)
 [![Platform](https://img.shields.io/badge/Platform-Linux-blue.svg)](#supported-distributions)
@@ -14,19 +14,22 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 - **Cross-distribution support**: Automatically detects your distribution and uses the appropriate package manager
 - **Curated tool presets**: Quick installations using presets like `top10`, `default`, `headless`, `web`, `wireless`, and `passwords`
 - **Extensive Kali toolset**: Installs curated penetration testing and security auditing tools across 12 categories
-- **100% Arch Linux / CachyOS coverage**: Complete official repo and AUR mappings for all 171 tools with native `pacman` and unprivileged `yay`/`paru` helper integration
-- **BlackArch repository integration**: Optional bootstrapping of BlackArch repositories on Arch/CachyOS (`--enable-blackarch`) providing access to thousands of precompiled security packages
+- **Smart 5-tier installation fallback**: Intelligent resolution pipeline for Arch / CachyOS: `native pacman` → `AUR helpers` (`yay`/`paru`) → `pipx`/`pip3` (PyPI) → `BlackArch repo` → `source compilation`
+- **PyPI / pipx fallback tier**: Pure Python security tools (`dnsrecon`, `theHarvester`, `wfuzz`, `cupp`, `cmsmap`, `metagoofil`, `wifiphisher`) automatically install via `pipx` or PEP 668 compliant `pip3`
+- **Intelligent BlackArch repository auto-integration**: Tools missing from official/AUR repositories check BlackArch metadata with automatic setup prompts or seamless `--yes` bootstrapping
+- **Export telemetry & availability reports**: Export precheck availability matrices or installation results to structured `.json` or `.csv` files via `--export-report <path>`
+- **100% Arch Linux / CachyOS coverage**: Complete official repo, AUR, and BlackArch mappings across all 171 tools with native `pacman` and unprivileged `yay`/`paru` helper integration
 - **Build-from-source engine**: Automated fallback compilation for tools missing from native repos (supports Go, Python/pip, CMake, Make, and Git clones)
 - **Automated dependency resolution**: Resolves and pre-installs required runtime dependencies (`deps` column) and automatically provisions build prerequisites (`go`, `python3-pip`, `cmake`, `make`, `gcc`, `git`) before compiling source fallbacks
-- **Tool uninstallation & cleanup engine**: Cleanly remove installed tools, presets, or categories (`--uninstall` / `--remove`) via native package managers and purge `/usr/local/bin` and `/opt` source build files with safe `--dry-run` previews
-- **Persistent configuration file**: Store defaults (distribution, presets, categories, tools, BlackArch enablement, log locations) in `${XDG_CONFIG_HOME:-~/.config}/kali-installer/config`, `/etc/kali-installer/config`, or a custom path with `--config <path>`
+- **Tool uninstallation & cleanup engine**: Cleanly remove installed tools, presets, or categories (`--uninstall` / `--remove`) via native package managers and purge `/usr/local/bin`, `/opt`, and `pipx` packages with safe `--dry-run` previews
+- **Persistent configuration file**: Store defaults (distribution, presets, categories, tools, BlackArch enablement, report exports, log locations) in `${XDG_CONFIG_HOME:-~/.config}/kali-installer/config`, `/etc/kali-installer/config`, or a custom path with `--config <path>`
 - **ASCII art banner & retro BBS menus**: Dynamic typography banner with real-time environment dashboard and instant single-key BBS menus for interactive exploration, presets, categories, and settings
 - **Docker & CI automation**: Universal multi-distro `Dockerfile`, `docker-compose.yml`, local container test runner (`scripts/docker-test.sh`), and GitHub Actions CI matrix testing across 6 distributions on every push and PR
 - **High-performance batch installation**: Bundles packages into single native package transactions with automatic individual-package fallback on failure
 - **In-memory package resolution**: $O(1)$ tool-to-distro package mapping lookup without repeated disk/awk overhead
 - **Interactive & non-interactive modes**: Run manually or automate in CI/CD
 - **Modular design**: Easy to extend for new distributions
-- **Package availability precheck & dry-run**: Query repositories before installing to see what's available and preview planned execution commands without root privileges
+- **Package availability precheck & dry-run**: Multi-tier repository query before installing to see what's available (official, AUR, PyPI, BlackArch) and preview planned execution commands without root privileges
 
 ## Quick Start
 
@@ -151,6 +154,7 @@ When combined with `--dry-run`, the installer evaluates availability, plans the 
 | `--yes`, `-y` | Skip confirmations |
 | `--dry-run` | Preview planned native package commands and source builds without installing |
 | `--precheck` | Check repository package availability and buildability (combines with `--dry-run`) |
+| `--export-report <path>` | Export package availability or installation results to a structured JSON or CSV file |
 | `--enable-blackarch` | Enable BlackArch repository on Arch/CachyOS |
 | `--no-tui`, `--plain` | Disable ASCII banner styling and BBS interactive menus |
 | `--no-update` | Skip package database update |
@@ -199,10 +203,12 @@ Kali tools are organized into categories. Install all or select specific ones:
 Edit `config/kali-tools.list` to customize which tools are installed:
 
 ```ini
-# Format: tool_name|category|description|debian_pkg|arch_pkg|fedora_pkg|slackware_pkg|opensuse_pkg|gentoo_pkg|alpine_pkg|void_pkg|deps
-nmap|info|Network exploration and security auditing|nmap|nmap|nmap|nmap|nmap|net-analyzer/nmap|nmap|nmap|python3-pip,curl
-metasploit-framework|exploit|Metasploit Framework|metasploit-framework|metasploit|metasploit-framework|metasploit-framework|metasploit-framework||||
-burpsuite|web|Web proxy and scanner|burpsuite||burpsuite|burpsuite|burpsuite||||
+# Format: tool_name|category|description|debian_pkg|arch_pkg|fedora_pkg|slackware_pkg|opensuse_pkg|gentoo_pkg|alpine_pkg|void_pkg|deps|pip_pkg|blackarch_pkg
+nmap|info|Network exploration and security auditing|nmap|nmap|nmap|nmap|nmap|net-analyzer/nmap|nmap|nmap|python3-pip,curl||
+metasploit-framework|exploit|Metasploit Framework|metasploit-framework|metasploit|metasploit-framework|metasploit-framework|metasploit-framework|||||
+burpsuite|web|Web proxy and scanner|burpsuite||burpsuite|burpsuite|burpsuite|||||
+dnsrecon|info|DNS enumeration script|dnsrecon|dnsrecon|dnsrecon|dnsrecon|dnsrecon||||python3|dnsrecon|
+openvas|vuln|OpenVAS scanner|openvas|openvas|openvas|openvas|openvas||||||openvas
 ```
 
 ### Persistent Configuration File
@@ -256,6 +262,9 @@ precheck = false
 
 # Uninstallation mode
 uninstall = false
+
+# Export telemetry & availability report (JSON or CSV)
+export_report = /var/log/kali-tools-report.json
 ```
 
 ```bash
@@ -460,9 +469,10 @@ kali-tools-installer/
 
 ### Running Tests
 
-The test suite contains 52 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, BlackArch repository bootstrapping, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, CI & Docker automation, ASCII banner & BBS menus, multiline array ingestion, tool list idempotence, empty target guards, build recipes, and clean logging:
+The test suite contains 60 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, 5-tier installation fallback, pipx/pip PyPI resolution, BlackArch repository bootstrapping & auto-integration, JSON/CSV report exports, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, CI & Docker automation, ASCII banner & BBS menus, multiline array ingestion, tool list idempotence, empty target guards, build recipes, and clean logging:
 
 ```bash
+
 # Run the complete test suite
 ./tests/test_install.sh
 

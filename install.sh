@@ -5,6 +5,9 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT
 export PROJECT_ROOT
 
+EXPORT_REPORT_FILE="${EXPORT_REPORT_FILE:-}"
+export EXPORT_REPORT_FILE
+
 source "${PROJECT_ROOT}/lib/utils.sh"
 source "${PROJECT_ROOT}/lib/distro.sh"
 source "${PROJECT_ROOT}/lib/packages.sh"

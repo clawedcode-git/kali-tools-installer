@@ -6,6 +6,8 @@ declare -A TOOL_DESCRIPTIONS=([_init]="")
 declare -A CATEGORY_TOOLS=([_init]="")
 declare -A TOOL_PKG_MAPPINGS=([_init]="")
 declare -A TOOL_DEPS=([_init]="")
+declare -A TOOL_PIP_PKG=([_init]="")
+declare -A TOOL_BLACKARCH_PKG=([_init]="")
 
 load_tool_list() {
     if [[ ! -f "${KALI_TOOLS_LIST}" ]]; then
@@ -18,9 +20,11 @@ load_tool_list() {
     CATEGORY_TOOLS=()
     TOOL_PKG_MAPPINGS=()
     TOOL_DEPS=()
+    TOOL_PIP_PKG=()
+    TOOL_BLACKARCH_PKG=()
     
-    local tool category desc debian_pkg arch_pkg fedora_pkg slackware_pkg opensuse_pkg gentoo_pkg alpine_pkg void_pkg deps
-    while IFS='|' read -r tool category desc debian_pkg arch_pkg fedora_pkg slackware_pkg opensuse_pkg gentoo_pkg alpine_pkg void_pkg deps; do
+    local tool category desc debian_pkg arch_pkg fedora_pkg slackware_pkg opensuse_pkg gentoo_pkg alpine_pkg void_pkg deps pip_pkg blackarch_pkg
+    while IFS='|' read -r tool category desc debian_pkg arch_pkg fedora_pkg slackware_pkg opensuse_pkg gentoo_pkg alpine_pkg void_pkg deps pip_pkg blackarch_pkg; do
         [[ "${tool}" =~ ^#.*$ ]] && continue
         [[ -z "${tool}" ]] && continue
         
@@ -36,6 +40,8 @@ load_tool_list() {
         [[ -n "${gentoo_pkg}" ]] && TOOL_PKG_MAPPINGS["gentoo:${tool}"]="${gentoo_pkg}"
         [[ -n "${alpine_pkg}" ]] && TOOL_PKG_MAPPINGS["alpine:${tool}"]="${alpine_pkg}"
         [[ -n "${void_pkg}" ]] && TOOL_PKG_MAPPINGS["void:${tool}"]="${void_pkg}"
+        [[ -n "${pip_pkg:-}" ]] && TOOL_PIP_PKG["${tool}"]="${pip_pkg}"
+        [[ -n "${blackarch_pkg:-}" ]] && TOOL_BLACKARCH_PKG["${tool}"]="${blackarch_pkg}"
 
         deps="${deps:-}"
         deps="${deps#"${deps%%[![:space:]]*}"}"
@@ -68,6 +74,16 @@ get_tool_description() {
 get_tool_deps() {
     local tool="$1"
     echo "${TOOL_DEPS[${tool}]:-}"
+}
+
+get_tool_pip_pkg() {
+    local tool="$1"
+    echo "${TOOL_PIP_PKG[${tool}]:-}"
+}
+
+get_tool_blackarch_pkg() {
+    local tool="$1"
+    echo "${TOOL_BLACKARCH_PKG[${tool}]:-}"
 }
 
 get_all_deps_for_tools() {
