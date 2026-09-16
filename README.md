@@ -286,7 +286,7 @@ kali-tools-installer/
 
 ### Running Tests
 
-The test suite contains 25 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, BlackArch repository bootstrapping, build recipes, and clean logging:
+The test suite contains 29 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, BlackArch repository bootstrapping, tool presets, build recipes, and clean logging:
 
 ```bash
 # Run the complete test suite
