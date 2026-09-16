@@ -112,6 +112,24 @@ sudo ./install.sh --distro slackware --categories "password,wireless" --yes
 # Install tools while skipping automatic dependency pre-installation
 sudo ./install.sh --distro arch --tools nmap,wireshark --no-deps --yes
 
+# Run health check and smoke tests on all installed Kali tools
+./install.sh --doctor
+
+# Run a tool inside an isolated rootless container (podman/docker)
+./install.sh --sandbox sqlmap
+
+# Create an offline air-gapped installation archive for Top 10 tools
+./install.sh --bundle ~/kali-bundle.tar.gz --preset top10
+
+# Create a system recovery snapshot before making changes
+./install.sh --snapshot
+
+# List available recovery snapshots
+./install.sh --list-snapshots
+
+# Roll back installed tools to the latest snapshot
+sudo ./install.sh --rollback latest
+
 # Uninstall Top 10 Kali tools on Arch / CachyOS
 sudo ./install.sh --distro arch --preset top10 --uninstall --yes
 
@@ -489,7 +507,7 @@ kali-tools-installer/
 
 ### Running Tests
 
-The test suite contains 73 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, 5-tier installation fallback, pipx/pip PyPI resolution, BlackArch repository bootstrapping & auto-integration, JSON/CSV report exports, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, CI & Docker automation, ASCII banner & BBS menus, multiline array ingestion, tool list idempotence, empty target guards, build recipes, installed tools dashboard, scoped auto-update, per-tool method overrides, diff mode matrix, batch progress bar & counter, bash & zsh tab completion generation, enhanced BlackArch mappings, and clean logging:
+The test suite contains 77 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, 5-tier installation fallback, pipx/pip PyPI resolution, BlackArch repository bootstrapping & auto-integration, JSON/CSV report exports, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, CI & Docker automation, ASCII banner & BBS menus, multiline array ingestion, tool list idempotence, empty target guards, build recipes, installed tools dashboard, scoped auto-update, per-tool method overrides, diff mode matrix, batch progress bar & counter, bash & zsh tab completion generation, enhanced BlackArch mappings, doctor health verification, rootless container sandboxing, air-gapped bundle generation, and snapshots & rollback:
 
 ```bash
 
