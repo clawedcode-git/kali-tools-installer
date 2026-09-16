@@ -196,6 +196,43 @@ test_precheck_execution() {
     test_log "PASS: precheck executed successfully without root"
 }
 
+test_arch_package_completeness() {
+    test_log "Testing Arch Linux package mapping completeness..."
+    local missing=0
+    for tool in $(list_all_tools); do
+        local pkg="${TOOL_PKG_MAPPINGS["arch:${tool}"]:-}"
+        if [[ -z "${pkg}" ]]; then
+            ((missing++))
+        fi
+    done
+    [[ ${missing} -eq 0 ]] || { test_log "FAIL: ${missing} tools missing Arch mappings"; return 1; }
+    test_log "PASS: 100% Arch package mapping coverage verified (${#TOOL_CATEGORIES[@]} tools)"
+}
+
+test_build_from_source_recipe() {
+    test_log "Testing build_from_source detection and dry-run..."
+    local info
+    info=$(check_build_from_source "gobuster")
+    [[ "${info}" == "BUILDABLE:go:https://github.com/OJ/gobuster" ]] || { test_log "FAIL: unexpected gobuster recipe: ${info}"; return 1; }
+    
+    local dry_build
+    dry_build=$(DRY_RUN=true build_from_source "gobuster")
+    echo "${dry_build}" | grep -q "[DRY RUN]" || { test_log "FAIL: dry run build missing dry run message: ${dry_build}"; return 1; }
+    test_log "PASS: build_from_source recipe and dry-run confirmed"
+}
+
+test_precheck_with_dry_run() {
+    test_log "Testing combined --precheck and --dry-run execution..."
+    local out
+    if ! out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --categories web --precheck --dry-run 2>&1); then
+        test_log "FAIL: combined precheck and dry-run failed: ${out}"
+        return 1
+    fi
+    echo "${out}" | grep -q "Precheck Summary" || { test_log "FAIL: Precheck Summary missing in combined run: ${out}"; return 1; }
+    echo "${out}" | grep -q "Dry run complete" || { test_log "FAIL: Dry run complete missing in combined run: ${out}"; return 1; }
+    test_log "PASS: combined --precheck and --dry-run executed successfully"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -210,11 +247,14 @@ run_tests() {
     test_prompt_yes_no_default || ((failed++))
     test_dry_run_unprivileged || ((failed++))
     test_precheck_execution || ((failed++))
+    test_precheck_with_dry_run || ((failed++))
     test_get_categories || ((failed++))
     test_get_tools_in_category || ((failed++))
     test_get_distro_pkg_name || ((failed++))
     test_in_memory_package_cache || ((failed++))
     test_multiple_distro_mappings || ((failed++))
+    test_arch_package_completeness || ((failed++))
+    test_build_from_source_recipe || ((failed++))
     test_validate_tool || ((failed++))
     test_validate_category || ((failed++))
     test_list_all_tools || ((failed++))

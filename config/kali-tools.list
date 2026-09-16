@@ -27,101 +27,101 @@ tcpdump|info|Packet capture|tcpdump|tcpdump|tcpdump|tcpdump|tcpdump|net-analyzer
 ettercap|info|MITM suite|ettercap-graphical|ettercap|ettercap|ettercap|ettercap||||
 bettercap|info|Network attack framework|bettercap|bettercap|bettercap|bettercap|bettercap||||
 mitmproxy|info|Intercept proxy|mitmproxy|mitmproxy|mitmproxy|mitmproxy|mitmproxy||||
-burpsuite|web|Web proxy and scanner|burpsuite||burpsuite|burpsuite|burpsuite||||
+burpsuite|web|Web proxy and scanner|burpsuite|burpsuite|burpsuite|burpsuite|burpsuite||||
 owasp-zap|web|OWASP ZAP proxy|zaproxy|zaproxy|zaproxy|zaproxy|zaproxy||||
 nikto|web|Web server scanner|nikto|nikto|nikto|nikto|nikto||||
-dirb|web|Directory brute forcer|dirb||dirb|dirb|dirb||||
+dirb|web|Directory brute forcer|dirb|dirb|dirb|dirb|dirb||||
 gobuster|web|Directory/DNS brute forcer|gobuster|gobuster|gobuster|gobuster|gobuster||||
-wfuzz|web|Web fuzzer|wfuzz||wfuzz|wfuzz|wfuzz||||
-whatweb|web|Web fingerprinting|whatweb||whatweb|whatweb|whatweb||||
-wpscan|web|WordPress scanner|wpscan||wpscan|wpscan|wpscan||||
-joomscan|web|Joomla scanner|joomscan||joomscan|joomscan|joomscan||||
-cmsmap|web|CMS scanner|cmsmap||cmsmap|cmsmap|cmsmap||||
-sqlmap|vuln|SQL injection|sqlmap||sqlmap|sqlmap|sqlmap||||
-sqlninja|vuln|MSSQL injection|sqlninja||sqlninja|sqlninja|sqlninja||||
-bbqsql|vuln|Blind SQL injection|bbqsql||bbqsql|bbqsql|bbqsql||||
-jboss-autopwn|vuln|JBoss exploit|jboss-autopwn||jboss-autopwn|jboss-autopwn|jboss-autopwn||||
-wapiti|vuln|Web vulnerability scanner|wapiti||wapiti|wapiti|wapiti||||
-skipfish|vuln|Web app scanner|skipfish||skipfish|skipfish|skipfish||||
-arachni|vuln|Web app scanner|arachni||arachni|arachni|arachni||||
-vagaa|vuln|Vulnerability scanner|vagaa||vagaa|vagaa|vagaa||||
-openvas|vuln|OpenVAS scanner|openvas||openvas|openvas|openvas||||
-nessus|vuln|Nessus scanner|nessus||nessus|nessus|nessus||||
-nexpose|vuln|Nexpose scanner|nexpose||nexpose|nexpose|nexpose||||
-retina|vuln|Retina scanner|retina||retina|retina|retina||||
-foundstone|vuln|Foundstone scanner|foundstone||foundstone|foundstone|foundstone||||
-core-impact|vuln|Core Impact|core-impact||core-impact|core-impact|core-impact||||
+wfuzz|web|Web fuzzer|wfuzz|wfuzz|wfuzz|wfuzz|wfuzz||||
+whatweb|web|Web fingerprinting|whatweb|whatweb|whatweb|whatweb|whatweb||||
+wpscan|web|WordPress scanner|wpscan|wpscan|wpscan|wpscan|wpscan||||
+joomscan|web|Joomla scanner|joomscan|joomscan|joomscan|joomscan|joomscan||||
+cmsmap|web|CMS scanner|cmsmap|cmsmap|cmsmap|cmsmap|cmsmap||||
+sqlmap|vuln|SQL injection|sqlmap|sqlmap|sqlmap|sqlmap|sqlmap||||
+sqlninja|vuln|MSSQL injection|sqlninja|sqlninja|sqlninja|sqlninja|sqlninja||||
+bbqsql|vuln|Blind SQL injection|bbqsql|bbqsql|bbqsql|bbqsql|bbqsql||||
+jboss-autopwn|vuln|JBoss exploit|jboss-autopwn|jboss-autopwn|jboss-autopwn|jboss-autopwn|jboss-autopwn||||
+wapiti|vuln|Web vulnerability scanner|wapiti|wapiti|wapiti|wapiti|wapiti||||
+skipfish|vuln|Web app scanner|skipfish|skipfish|skipfish|skipfish|skipfish||||
+arachni|vuln|Web app scanner|arachni|arachni|arachni|arachni|arachni||||
+vagaa|vuln|Vulnerability scanner|vagaa|vagaa|vagaa|vagaa|vagaa||||
+openvas|vuln|OpenVAS scanner|openvas|openvas|openvas|openvas|openvas||||
+nessus|vuln|Nessus scanner|nessus|nessus|nessus|nessus|nessus||||
+nexpose|vuln|Nexpose scanner|nexpose|nexpose|nexpose|nexpose|nexpose||||
+retina|vuln|Retina scanner|retina|retina|retina|retina|retina||||
+foundstone|vuln|Foundstone scanner|foundstone|foundstone|foundstone|foundstone|foundstone||||
+core-impact|vuln|Core Impact|core-impact|core-impact|core-impact|core-impact|core-impact||||
 metasploit-framework|exploit|Metasploit Framework|metasploit-framework|metasploit|metasploit-framework|metasploit-framework|metasploit-framework||||
 exploitdb|exploit|Exploit Database|exploitdb|exploitdb|exploitdb|exploitdb|exploitdb||||
 searchsploit|exploit|Search exploits|exploitdb|exploitdb|exploitdb|exploitdb|exploitdb||||
-setoolkit|exploit|Social Engineering Toolkit|setoolkit||setoolkit|setoolkit|setoolkit||||
-beef|exploit|Browser exploitation|beef-xss||beef|beef|beef||||
-powersploit|exploit|PowerShell exploitation|powersploit||powersploit|powersploit|powersploit||||
-nishang|exploit|PowerShell scripts|nishang||nishang|nishang|nishang||||
-empire|exploit|PowerShell Empire|powershell-empire||empire|empire|empire||||
-covenant|exploit|C2 framework|covenant||covenant|covenant|covenant||||
-sliver|exploit|C2 framework|sliver||sliver|sliver|sliver||||
-koadic|exploit|COM C2|koadic||koadic|koadic|koadic||||
-pupy|exploit|Cross-platform RAT|pupy||pupy|pupy|pupy||||
-ratel|exploit|C2 framework|ratel||ratel|ratel|ratel||||
+setoolkit|exploit|Social Engineering Toolkit|setoolkit|setoolkit|setoolkit|setoolkit|setoolkit||||
+beef|exploit|Browser exploitation|beef-xss|beef|beef|beef|beef||||
+powersploit|exploit|PowerShell exploitation|powersploit|powersploit|powersploit|powersploit|powersploit||||
+nishang|exploit|PowerShell scripts|nishang|nishang|nishang|nishang|nishang||||
+empire|exploit|PowerShell Empire|powershell-empire|empire|empire|empire|empire||||
+covenant|exploit|C2 framework|covenant|covenant|covenant|covenant|covenant||||
+sliver|exploit|C2 framework|sliver|sliver|sliver|sliver|sliver||||
+koadic|exploit|COM C2|koadic|koadic|koadic|koadic|koadic||||
+pupy|exploit|Cross-platform RAT|pupy|pupy|pupy|pupy|pupy||||
+ratel|exploit|C2 framework|ratel|ratel|ratel|ratel|ratel||||
 hashcat|password|Password cracker|hashcat|hashcat|hashcat|hashcat|hashcat||||
 john|password|John the Ripper|john|john|john|john|john|app-crypt/john|john|john
 john-data|password|Jumbo wordlists|john-data|john|john-data|john-data|john-data||||
 hydra|password|Network logon cracker|hydra|hydra|hydra|hydra|hydra|net-misc/hydra|hydra|hydra
 medusa|password|Parallel login brute|medusa|medusa|medusa|medusa|medusa||||
-ncrack|password|Network auth cracker|ncrack||ncrack|ncrack|ncrack||||
-patator|password|Multi-service brute|patator||patator|patator|patator||||
-crowbar|password|Brute force|crowbar||crowbar|crowbar|crowbar||||
-cewl|password|Custom wordlist generator|cewl||cewl|cewl|cewl||||
+ncrack|password|Network auth cracker|ncrack|ncrack|ncrack|ncrack|ncrack||||
+patator|password|Multi-service brute|patator|patator|patator|patator|patator||||
+crowbar|password|Brute force|crowbar|crowbar|crowbar|crowbar|crowbar||||
+cewl|password|Custom wordlist generator|cewl|cewl|cewl|cewl|cewl||||
 crunch|password|Wordlist generator|crunch|crunch|crunch|crunch|crunch||||
-cupp|password|Common password profiler|cupp||cupp|cupp|cupp||||
-rsmangler|password|Wordlist mangler|rsmangler||rsmangler|rsmangler|rsmangler||||
+cupp|password|Common password profiler|cupp|cupp|cupp|cupp|cupp||||
+rsmangler|password|Wordlist mangler|rsmangler|rsmangler|rsmangler|rsmangler|rsmangler||||
 maskprocessor|password|Mask processor|maskprocessor|maskprocessor|maskprocessor|maskprocessor|maskprocessor||||
 statsprocessor|password|Statistics processor|statsprocessor|statsprocessor|statsprocessor|statsprocessor|statsprocessor||||
 princeprocessor|password|PRINCE generator|princeprocessor|princeprocessor|princeprocessor|princeprocessor|princeprocessor||||
 aircrack-ng|wireless|WiFi cracking|aircrack-ng|aircrack-ng|aircrack-ng|aircrack-ng|aircrack-ng|net-wireless/aircrack-ng|aircrack-ng|aircrack-ng
-wifite|wireless|Automated WiFi attack|wifite||wifite|wifite|wifite||||
+wifite|wireless|Automated WiFi attack|wifite|wifite|wifite|wifite|wifite||||
 kismet|wireless|Wireless detector|kismet|kismet|kismet|kismet|kismet|net-wireless/kismet|kismet|kismet
 reaver|wireless|WPS attack|reaver|reaver|reaver|reaver|reaver||||
-bully|wireless|WPS brute force|bully||bully|bully|bully||||
+bully|wireless|WPS brute force|bully|bully|bully|bully|bully||||
 pixiewps|wireless|WPS pixie dust|pixiewps|pixiewps|pixiewps|pixiewps|pixiewps||||
 wash|wireless|WPS scanner|reaver|reaver|reaver|reaver|reaver||||
-fern-wifi-cracker|wireless|WiFi cracker GUI|fern-wifi-cracker||fern-wifi-cracker|fern-wifi-cracker|fern-wifi-cracker||||
-wifi-honey|wireless|Honeypot|wifi-honey||wifi-honey|wifi-honey|wifi-honey||||
-hostapd-wpe|wireless|Wireless PEAP|hostapd-wpe||hostapd-wpe|hostapd-wpe|hostapd-wpe||||
-eaphammer|wireless|Evil AP|eaphammer||eaphammer|eaphammer|eaphammer||||
-fluxion|wireless|WiFi MITM|fluxion||fluxion|fluxion|fluxion||||
-wifiphisher|wireless|Phishing AP|wifiphisher||wifiphisher|wifiphisher|wifiphisher||||
-create_ap|wireless|Create AP|create_ap||create_ap|create_ap|create_ap||||
-mdk3|wireless|802.11 exploitation|mdk3||mdk3|mdk3|mdk3||||
-mdk4|wireless|802.11 exploitation|mdk4||mdk4|mdk4|mdk4||||
-autopsy|forensics|Digital forensics|autopsy||autopsy|autopsy|autopsy||||
+fern-wifi-cracker|wireless|WiFi cracker GUI|fern-wifi-cracker|fern-wifi-cracker|fern-wifi-cracker|fern-wifi-cracker|fern-wifi-cracker||||
+wifi-honey|wireless|Honeypot|wifi-honey|wifi-honey|wifi-honey|wifi-honey|wifi-honey||||
+hostapd-wpe|wireless|Wireless PEAP|hostapd-wpe|hostapd-wpe|hostapd-wpe|hostapd-wpe|hostapd-wpe||||
+eaphammer|wireless|Evil AP|eaphammer|eaphammer|eaphammer|eaphammer|eaphammer||||
+fluxion|wireless|WiFi MITM|fluxion|fluxion|fluxion|fluxion|fluxion||||
+wifiphisher|wireless|Phishing AP|wifiphisher|wifiphisher|wifiphisher|wifiphisher|wifiphisher||||
+create_ap|wireless|Create AP|create_ap|create_ap|create_ap|create_ap|create_ap||||
+mdk3|wireless|802.11 exploitation|mdk3|mdk3|mdk3|mdk3|mdk3||||
+mdk4|wireless|802.11 exploitation|mdk4|mdk4|mdk4|mdk4|mdk4||||
+autopsy|forensics|Digital forensics|autopsy|autopsy|autopsy|autopsy|autopsy||||
 sleuthkit|forensics|Forensic toolkit|sleuthkit|sleuthkit|sleuthkit|sleuthkit|sleuthkit|sys-apps/sleuthkit|sleuthkit|sleuthkit
-volatility|forensics|Memory forensics|volatility||volatility|volatility|volatility||||
-volatility3|forensics|Memory forensics v3|volatility3||volatility3|volatility3|volatility3||||
-bulk-extractor|forensics|Bulk extraction|bulk-extractor||bulk-extractor|bulk-extractor|bulk-extractor||||
+volatility|forensics|Memory forensics|volatility|volatility|volatility|volatility|volatility||||
+volatility3|forensics|Memory forensics v3|volatility3|volatility3|volatility3|volatility3|volatility3||||
+bulk-extractor|forensics|Bulk extraction|bulk-extractor|bulk-extractor|bulk-extractor|bulk-extractor|bulk-extractor||||
 foremost|forensics|File carving|foremost|foremost|foremost|foremost|foremost||||
-scalpel|forensics|File carving|scalpel||scalpel|scalpel|scalpel||||
+scalpel|forensics|File carving|scalpel|scalpel|scalpel|scalpel|scalpel||||
 binwalk|forensics|Firmware analysis|binwalk|binwalk|binwalk|binwalk|binwalk||||
-firmwalker|forensics|Firmware analysis|firmwalker||firmwalker|firmwalker|firmwalker||||
-firmadyne|forensics|Firmware emulation|firmadyne||firmadyne|firmadyne|firmadyne||||
+firmwalker|forensics|Firmware analysis|firmwalker|firmwalker|firmwalker|firmwalker|firmwalker||||
+firmadyne|forensics|Firmware emulation|firmadyne|firmadyne|firmadyne|firmadyne|firmadyne||||
 chkrootkit|forensics|Rootkit detector|chkrootkit|chkrootkit|chkrootkit|chkrootkit|chkrootkit||||
 rkhunter|forensics|Rootkit hunter|rkhunter|rkhunter|rkhunter|rkhunter|rkhunter||||
 lynis|forensics|System auditing|lynis|lynis|lynis|lynis|lynis||||
-tiger|forensics|Security audit|tiger||tiger|tiger|tiger||||
+tiger|forensics|Security audit|tiger|tiger|tiger|tiger|tiger||||
 ghidra|reverse|NSA reverse engineering|ghidra|ghidra|ghidra|ghidra|ghidra||||
 radare2|reverse|RE framework|radare2|radare2|radare2|radare2|radare2|dev-util/radare2|radare2|radare2
 gdb|reverse|GNU debugger|gdb|gdb|gdb|gdb|gdb|sys-devel/gdb|gdb|gdb
-ida-free|reverse|IDA Free|ida-free||ida-free|ida-free|ida-free||||
-hopper|reverse|Hopper disassembler|hopper||hopper|hopper|hopper||||
-binary-ninja|reverse|Binary Ninja|binary-ninja||binary-ninja|binary-ninja|binary-ninja||||
+ida-free|reverse|IDA Free|ida-free|ida-free|ida-free|ida-free|ida-free||||
+hopper|reverse|Hopper disassembler|hopper|hopper|hopper|hopper|hopper||||
+binary-ninja|reverse|Binary Ninja|binary-ninja|binary-ninja|binary-ninja|binary-ninja|binary-ninja||||
 cutter|reverse|Cutter GUI|rz-cutter|rz-cutter|rz-cutter|rz-cutter|rz-cutter||||
 rizin|reverse|Rizin RE|rizin|rizin|rizin|rizin|rizin||||
 angr|reverse|Binary analysis|python3-angr|python-angr|python3-angr|python3-angr|python3-angr||||
 pwntools|exploit|CTF framework|python3-pwntools|python-pwntools|python3-pwntools|python3-pwntools|python3-pwntools||||
 ropper|exploit|ROP gadget finder|ropper|ropper|ropper|ropper|ropper||||
 ropgadget|exploit|ROP gadget finder|ropgadget|ropgadget|ropgadget|ropgadget|ropgadget||||
-one-gadget|exploit|One gadget finder|one-gadget||one-gadget|one-gadget|one-gadget||||
+one-gadget|exploit|One gadget finder|one-gadget|one-gadget|one-gadget|one-gadget|one-gadget||||
 checksec|exploit|Binary hardening check|checksec|checksec|checksec|checksec|checksec||||
 pwninit|exploit|Pwn init|pwninit|pwninit|pwninit|pwninit|pwninit||||
 gdb-gef|exploit|GDB Enhanced Features|gef|gef|gef|gef|gef||||
@@ -132,46 +132,46 @@ peda|exploit|Python Exploit Development|peda|peda|peda|peda|peda||||
 rtl-sdr|hardware|SDR tools|rtl-sdr|rtl-sdr|rtl-sdr|rtl-sdr|rtl-sdr|sci-libs/rtl-sdr|rtl-sdr|rtl-sdr
 hackrf|hardware|HackRF tools|hackrf|hackrf|hackrf|hackrf|hackrf||||
 ubertooth|hardware|Ubertooth tools|ubertooth|ubertooth|ubertooth|ubertooth|ubertooth||||
-yardstick|hardware|Yard Stick One|yardstick||yardstick|yardstick|yardstick||||
+yardstick|hardware|Yard Stick One|yardstick|yardstick|yardstick|yardstick|yardstick||||
 bladeRF|hardware|bladeRF|bladeRF|bladeRF|bladeRF|bladeRF||||
-limesdr|hardware|LimeSDR|limesdr||limesdr|limesdr|limesdr||||
+limesdr|hardware|LimeSDR|limesdr|limesdr|limesdr|limesdr|limesdr||||
 gqrx|hardware|SDR receiver|gqrx|gqrx|gqrx|gqrx|gqrx||||
-cubicsdr|hardware|SDR receiver|cubicsdr||cubicsdr|cubicsdr|cubicsdr||||
-sdrangel|hardware|SDR transceiver|sdrangel||sdrangel|sdrangel|sdrangel||||
+cubicsdr|hardware|SDR receiver|cubicsdr|cubicsdr|cubicsdr|cubicsdr|cubicsdr||||
+sdrangel|hardware|SDR transceiver|sdrangel|sdrangel|sdrangel|sdrangel|sdrangel||||
 inspectrum|hardware|Signal analysis|inspectrum|inspectrum|inspectrum|inspectrum|inspectrum||||
 sigrok|hardware|Logic analyzer|sigrok|sigrok|sigrok|sigrok|sigrok||||
 pulseview|hardware|Logic analyzer GUI|pulseview|pulseview|pulseview|pulseview|pulseview||||
-faraday|reporting|Faraday IDE|faraday||faraday|faraday|faraday||||
-dradis|reporting|Dradis framework|dradis||dradis|dradis|dradis||||
-magictree|reporting|MagicTree|magictree||magictree|magictree|magictree||||
+faraday|reporting|Faraday IDE|faraday|faraday|faraday|faraday|faraday||||
+dradis|reporting|Dradis framework|dradis|dradis|dradis|dradis|dradis||||
+magictree|reporting|MagicTree|magictree|magictree|magictree|magictree|magictree||||
 driftnet|sniffing|Image sniffer|driftnet|driftnet|driftnet|driftnet|driftnet||||
 urlsnarf|sniffing|URL sniffer|dsniff|dsniff|dsniff|dsniff|dsniff||||
 msgsnarf|sniffing|Message sniffer|dsniff|dsniff|dsniff|dsniff|dsniff||||
 mailsnarf|sniffing|Mail sniffer|dsniff|dsniff|dsniff|dsniff|dsniff||||
 webspy|sniffing|Web spy|dsniff|dsniff|dsniff|dsniff|dsniff||||
-sslsniff|sniffing|SSL sniffer|sslsniff||sslsniff|sslsniff|sslsniff||||
-tcpick|sniffing|TCP sniffer|tcpick||tcpick|tcpick|tcpick||||
-tcpxtract|sniffing|TCP extraction|tcpxtract||tcpxtract|tcpxtract|tcpxtract||||
-chaosreader|sniffing|Chaos reader|chaosreader||chaosreader|chaosreader|chaosreader||||
-arpalert|sniffing|ARP monitor|arpalert||arpalert|arpalert|arpalert||||
-arpon|sniffing|ARP handler|arpon||arpon|arpon|arpon||||
-netdiscover|sniffing|Network discovery|netdiscover||netdiscover|netdiscover|netdiscover||||
-nbtscan|sniffing|NetBIOS scanner|nbtscan||nbtscan|nbtscan|nbtscan||||
-onesixtyone|sniffing|SNMP scanner|onesixtyone||onesixtyone|onesixtyone|onesixtyone||||
+sslsniff|sniffing|SSL sniffer|sslsniff|sslsniff|sslsniff|sslsniff|sslsniff||||
+tcpick|sniffing|TCP sniffer|tcpick|tcpick|tcpick|tcpick|tcpick||||
+tcpxtract|sniffing|TCP extraction|tcpxtract|tcpxtract|tcpxtract|tcpxtract|tcpxtract||||
+chaosreader|sniffing|Chaos reader|chaosreader|chaosreader|chaosreader|chaosreader|chaosreader||||
+arpalert|sniffing|ARP monitor|arpalert|arpalert|arpalert|arpalert|arpalert||||
+arpon|sniffing|ARP handler|arpon|arpon|arpon|arpon|arpon||||
+netdiscover|sniffing|Network discovery|netdiscover|netdiscover|netdiscover|netdiscover|netdiscover||||
+nbtscan|sniffing|NetBIOS scanner|nbtscan|nbtscan|nbtscan|nbtscan|nbtscan||||
+onesixtyone|sniffing|SNMP scanner|onesixtyone|onesixtyone|onesixtyone|onesixtyone|onesixtyone||||
 ike-scan|sniffing|IKE scanner|ike-scan|ike-scan|ike-scan|ike-scan|ike-scan||||
-cdpsnarf|sniffing|CDP sniffer|cdpsnarf||cdpsnarf|cdpsnarf|cdpsnarf||||
-dtpscan|sniffing|DTP scanner|dtpscan||dtpscan|dtpscan|dtpscan||||
+cdpsnarf|sniffing|CDP sniffer|cdpsnarf|cdpsnarf|cdpsnarf|cdpsnarf|cdpsnarf||||
+dtpscan|sniffing|DTP scanner|dtpscan|dtpscan|dtpscan|dtpscan|dtpscan||||
 yersinia|sniffing|Layer 2 attacks|yersinia|yersinia|yersinia|yersinia|yersinia||||
 proxychains|maintaining|Proxy chains|proxychains4|proxychains-ng|proxychains-ng|proxychains-ng|proxychains-ng||||
-proxytunnel|maintaining|Proxy tunnel|proxytunnel||proxytunnel|proxytunnel|proxytunnel||||
+proxytunnel|maintaining|Proxy tunnel|proxytunnel|proxytunnel|proxytunnel|proxytunnel|proxytunnel||||
 sslh|maintaining|SSL/SSH multiplexer|sslh|sslh|sslh|sslh|sslh||||
 stunnel|maintaining|SSL tunnel|stunnel4|stunnel|stunnel|stunnel|stunnel||||
 socat|maintaining|Socket cat|socat|socat|socat|socat|socat|net-misc/socat|socat|socat
 ncat|maintaining|Netcat|nmap|nmap|nmap|nmap|nmap|net-analyzer/nmap|nmap|nmap
-cryptcat|maintaining|Encrypted netcat|cryptcat||cryptcat|cryptcat|cryptcat||||
-sbd|maintaining|Secure backdoor|sbd||sbd|sbd|sbd||||
-dns2tcp|maintaining|DNS tunnel|dns2tcp||dns2tcp|dns2tcp|dns2tcp||||
-iodine|maintaining|DNS tunnel|iodine||iodine|iodine|iodine||||
-ptunnel|maintaining|ICMP tunnel|ptunnel||ptunnel|ptunnel|ptunnel||||
-tcptunnel|maintaining|TCP tunnel|tcptunnel||tcptunnel|tcptunnel|tcptunnel||||
-udptunnel|maintaining|UDP tunnel|udptunnel||udptunnel|udptunnel|udptunnel||||
+cryptcat|maintaining|Encrypted netcat|cryptcat|cryptcat|cryptcat|cryptcat|cryptcat||||
+sbd|maintaining|Secure backdoor|sbd|sbd|sbd|sbd|sbd||||
+dns2tcp|maintaining|DNS tunnel|dns2tcp|dns2tcp|dns2tcp|dns2tcp|dns2tcp||||
+iodine|maintaining|DNS tunnel|iodine|iodine|iodine|iodine|iodine||||
+ptunnel|maintaining|ICMP tunnel|ptunnel|ptunnel|ptunnel|ptunnel|ptunnel||||
+tcptunnel|maintaining|TCP tunnel|tcptunnel|tcptunnel|tcptunnel|tcptunnel|tcptunnel||||
+udptunnel|maintaining|UDP tunnel|udptunnel|udptunnel|udptunnel|udptunnel|udptunnel||||

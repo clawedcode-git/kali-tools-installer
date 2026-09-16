@@ -29,12 +29,16 @@ main() {
     
     if [[ "${PRECHECK}" == "true" ]]; then
         run_precheck
-        exit 0
+        if [[ "${DRY_RUN}" != "true" ]]; then
+            exit 0
+        fi
     fi
     
     select_installation_scope
     confirm_installation
-    check_root
+    if [[ "${DRY_RUN}" != "true" ]]; then
+        check_root
+    fi
     run_installation
     print_summary
 }

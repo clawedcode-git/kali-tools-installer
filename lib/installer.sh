@@ -229,8 +229,8 @@ confirm_installation() {
     done
     
     if [[ "${DRY_RUN}" == "true" ]]; then
-        info "Dry run complete. Exiting."
-        exit 0
+        info "Planning installation in dry-run mode..."
+        return 0
     fi
     
     if ! prompt_yes_no "Proceed with installation?"; then
@@ -279,54 +279,112 @@ update_package_db() {
     esac
 }
 
+get_aur_helper() {
+    if command -v yay &>/dev/null; then
+        echo "yay"
+    elif command -v paru &>/dev/null; then
+        echo "paru"
+    else
+        echo ""
+    fi
+}
+
+run_aur_cmd() {
+    local helper="$1"
+    shift
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        info "[DRY RUN] ${helper} $*"
+        return 0
+    fi
+    
+    debug "Executing AUR helper (${helper}): $*"
+    if [[ ${EUID} -eq 0 && -n "${SUDO_USER:-}" ]]; then
+        sudo -u "${SUDO_USER}" "${helper}" "$@" 2>&1 | tee -a "${LOG_FILE}"
+        return ${PIPESTATUS[0]}
+    else
+        "${helper}" "$@" 2>&1 | tee -a "${LOG_FILE}"
+        return ${PIPESTATUS[0]}
+    fi
+}
+
 install_package() {
     local tool="$1"
     local pkg_name
     pkg_name=$(get_distro_pkg_name "${tool}")
     
-    if [[ -z "${pkg_name}" ]]; then
-        warn "No package mapping for ${tool} on ${DISTRO_FAMILY}"
-        INSTALL_RESULTS+=("SKIPPED:${tool} (no mapping)")
-        return 1
+    local result=0
+    if [[ -n "${pkg_name}" ]]; then
+        debug "Installing ${tool} (${pkg_name}) via ${PACKAGE_MANAGER}"
+        case "${PACKAGE_MANAGER}" in
+            pacman)
+                run_cmd pacman -S --noconfirm --needed "${pkg_name}" || result=$?
+                ;;
+            apt)
+                run_cmd apt install -y "${pkg_name}" || result=$?
+                ;;
+            dnf)
+                run_cmd dnf install -y "${pkg_name}" || result=$?
+                ;;
+            zypper)
+                run_cmd zypper install -y "${pkg_name}" || result=$?
+                ;;
+            slackpkg)
+                run_cmd slackpkg install "${pkg_name}" || result=$?
+                ;;
+            emerge)
+                run_cmd emerge "${pkg_name}" || result=$?
+                ;;
+            apk)
+                run_cmd apk add "${pkg_name}" || result=$?
+                ;;
+            xbps)
+                run_cmd xbps-install -y "${pkg_name}" || result=$?
+                ;;
+            *)
+                error "Unknown package manager: ${PACKAGE_MANAGER}"
+                result=1
+                ;;
+        esac
+    else
+        result=1
     fi
     
-    debug "Installing ${tool} (${pkg_name}) via ${PACKAGE_MANAGER}"
+    # If native pacman failed on Arch, try AUR helper (yay / paru)
+    if [[ ${result} -ne 0 && "${PACKAGE_MANAGER}" == "pacman" && -n "${pkg_name}" ]]; then
+        local aur_helper
+        aur_helper=$(get_aur_helper)
+        if [[ -n "${aur_helper}" ]]; then
+            info "Attempting installation of ${tool} (${pkg_name}) via AUR (${aur_helper})..."
+            local aur_res=0
+            run_aur_cmd "${aur_helper}" -S --noconfirm --needed "${pkg_name}" || aur_res=$?
+            if [[ ${aur_res} -eq 0 ]]; then
+                success "Installed: ${tool} (${pkg_name}) via ${aur_helper}"
+                INSTALL_RESULTS+=("SUCCESS:${tool}")
+                return 0
+            fi
+        fi
+    fi
     
-    local result=0
-    case "${PACKAGE_MANAGER}" in
-        pacman)
-            run_cmd pacman -S --noconfirm --needed "${pkg_name}" || result=$?
-            ;;
-        apt)
-            run_cmd apt install -y "${pkg_name}" || result=$?
-            ;;
-        dnf)
-            run_cmd dnf install -y "${pkg_name}" || result=$?
-            ;;
-        zypper)
-            run_cmd zypper install -y "${pkg_name}" || result=$?
-            ;;
-        slackpkg)
-            run_cmd slackpkg install "${pkg_name}" || result=$?
-            ;;
-        emerge)
-            run_cmd emerge "${pkg_name}" || result=$?
-            ;;
-        apk)
-            run_cmd apk add "${pkg_name}" || result=$?
-            ;;
-        xbps)
-            run_cmd xbps-install -y "${pkg_name}" || result=$?
-            ;;
-        *)
-            error "Unknown package manager: ${PACKAGE_MANAGER}"
-            result=1
-            ;;
-    esac
+    # If native package install failed or was unmapped, attempt source build fallback
+    if [[ ${result} -ne 0 ]]; then
+        local build_chk
+        build_chk=$(check_build_from_source "${tool}" "${pkg_name}" || true)
+        if [[ "${build_chk}" == BUILDABLE:* ]]; then
+            info "Attempting source build fallback for ${tool}..."
+            if build_from_source "${tool}"; then
+                success "Installed from source: ${tool}"
+                INSTALL_RESULTS+=("SUCCESS:${tool} (source)")
+                return 0
+            fi
+        fi
+    fi
     
     if [[ ${result} -eq 0 ]]; then
         success "Installed: ${tool} (${pkg_name})"
         INSTALL_RESULTS+=("SUCCESS:${tool}")
+    elif [[ -z "${pkg_name}" ]]; then
+        warn "No package mapping for ${tool} on ${DISTRO_FAMILY}"
+        INSTALL_RESULTS+=("SKIPPED:${tool} (no mapping)")
     else
         error "Failed: ${tool} (${pkg_name})"
         INSTALL_RESULTS+=("FAILED:${tool}")
@@ -499,98 +557,111 @@ check_package_available() {
 
 check_build_from_source() {
     local tool="$1"
-    local pkg_name="$2"
+    local pkg_name="${2:-}"
     local buildable=false
     local source_url=""
     local build_method=""
     
     case "${tool}" in
-        # Tools commonly available via Go
-        gobuster|gowitness|gobuster|feroxbuster)
-            buildable=true
-            build_method="go install"
-            source_url="https://github.com/OJ/gobuster"
-            ;;
-        # Python-based tools
-        wfuzz|whatweb|cewl|crunch|patator|patator|droopescan|sqlmap|wapiti)
-            buildable=true
-            build_method="pip install / python setup.py"
-            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
-            ;;
-        # Tools with GitHub repos
-        masscan|recon-ng|dnsrecon|fierce|dnsenum|dnswalk|lbhd|metagoofil|smtp-user-enum|snmpcheck|sslscan|sslyze|theharvester)
-            buildable=true
-            build_method="make / pip install / python setup.py"
-            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
-            ;;
-        # Web tools
-        dirb|gobuster|wfuzz|whatweb|wpscan|joomscan|cmsmap|nikto)
-            buildable=true
-            build_method="make / pip install"
-            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
-            ;;
-        # Vulnerability tools
-        sqlmap|sqlninja|bbqsql|jboss-autopwn|wapiti|skipfish|arachni|vagaa)
-            buildable=true
-            build_method="python setup.py / pip install"
-            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
-            ;;
-        # Exploitation
-        beef|powersploit|nishang|empire|covenant|sliver|koadic|pupy|ratel|setoolkit)
-            buildable=true
-            build_method="git clone + custom"
-            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
-            ;;
-        # Password
-        hashcat|john|hydra|medusa|ncrack|patator|crowbar|cewl|crunch|cupp|rsmangler|maskprocessor|statsprocessor|princeprocessor)
-            buildable=true
-            build_method="make / cmake"
-            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
-            ;;
-        # Wireless
-        wifite|bully|pixiewps|fern-wifi-cracker|wifi-honey|hostapd-wpe|eaphammer|fluxion|wifiphisher|create_ap|mdk3|mdk4)
-            buildable=true
-            build_method="make / python setup.py"
-            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
-            ;;
-        # Forensics
-        volatility|volatility3|bulk-extractor|foremost|scalpel|binwalk|firmwalker|firmadyne)
-            buildable=true
-            build_method="python setup.py / make"
-            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
-            ;;
-        # Reverse
-        ghidra|radare2|cutter|rizin|angr|pwntools|ropper|ropgadget|one-gadget|checksec|pwninit|gef|pwndbg|peda)
-            buildable=true
-            build_method="make / pip install / gradle"
-            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
-            ;;
-        # Hardware
-        rtl-sdr|hackrf|ubertooth|yardstick|bladeRF|limesdr|gqrx|cubicsdr|sdrangel|inspectrum|sigrok|pulseview)
-            buildable=true
-            build_method="cmake / make"
-            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
-            ;;
-        # Reporting
-        faraday|dradis|magictree)
-            buildable=true
-            build_method="gem install / docker"
-            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
-            ;;
-        # Sniffing
-        driftnet|urlsnarf|msgsnarf|mailsnarf|webspy|sslsniff|tcpick|tcpxtract|chaosreader|arpalert|arpon|netdiscover|nbtscan|onesixtyone|ike-scan|cdpsnarf|dtpscan|yersinia)
-            buildable=true
-            build_method="make / python setup.py"
-            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
-            ;;
-        # Maintaining
-        proxychains|proxytunnel|sslh|stunnel|socat|cryptcat|sbd|dns2tcp|iodine|ptunnel|tcptunnel|udptunnel)
-            buildable=true
-            build_method="make / cmake"
-            source_url="https://github.com/$(echo ${tool} | tr '[:upper:]' '[:lower:]')"
-            ;;
+        # Tools available via Go
+        gobuster)
+            buildable=true; build_method="go"; source_url="https://github.com/OJ/gobuster" ;;
+        gowitness)
+            buildable=true; build_method="go"; source_url="https://github.com/sensepost/gowitness" ;;
+        feroxbuster)
+            buildable=true; build_method="go"; source_url="https://github.com/epi052/feroxbuster" ;;
+        bettercap)
+            buildable=true; build_method="go"; source_url="https://github.com/bettercap/bettercap" ;;
+        sliver)
+            buildable=true; build_method="go"; source_url="https://github.com/BishopFox/sliver" ;;
+            
+        # Python tools
+        sqlmap)
+            buildable=true; build_method="pip"; source_url="https://github.com/sqlmapproject/sqlmap" ;;
+        wfuzz)
+            buildable=true; build_method="pip"; source_url="https://github.com/xmendez/wfuzz" ;;
+        recon-ng)
+            buildable=true; build_method="pip"; source_url="https://github.com/lanmaster53/recon-ng" ;;
+        dnsrecon)
+            buildable=true; build_method="pip"; source_url="https://github.com/darkoperator/dnsrecon" ;;
+        theharvester)
+            buildable=true; build_method="pip"; source_url="https://github.com/laramies/theHarvester" ;;
+        volatility)
+            buildable=true; build_method="pip"; source_url="https://github.com/volatilityfoundation/volatility" ;;
+        volatility3)
+            buildable=true; build_method="pip"; source_url="https://github.com/volatilityfoundation/volatility3" ;;
+        binwalk)
+            buildable=true; build_method="pip"; source_url="https://github.com/ReFirmLabs/binwalk" ;;
+        mitmproxy)
+            buildable=true; build_method="pip"; source_url="https://github.com/mitmproxy/mitmproxy" ;;
+        cupp)
+            buildable=true; build_method="pip"; source_url="https://github.com/Mebus/cupp" ;;
+        pwntools)
+            buildable=true; build_method="pip"; source_url="https://github.com/Gallopsled/pwntools" ;;
+        ropper)
+            buildable=true; build_method="pip"; source_url="https://github.com/sashs/Ropper" ;;
+        ropgadget)
+            buildable=true; build_method="pip"; source_url="https://github.com/JonathanSalwan/ROPgadget" ;;
+        gef)
+            buildable=true; build_method="pip"; source_url="https://github.com/hugsy/gef" ;;
+        pwndbg)
+            buildable=true; build_method="pip"; source_url="https://github.com/pwndbg/pwndbg" ;;
+        setoolkit)
+            buildable=true; build_method="pip"; source_url="https://github.com/trustedsec/social-engineer-toolkit" ;;
+        wifite)
+            buildable=true; build_method="pip"; source_url="https://github.com/derv82/wifite2" ;;
+            
+        # C / Make / CMake tools
+        masscan)
+            buildable=true; build_method="make"; source_url="https://github.com/robertdavidgraham/masscan" ;;
+        hashcat)
+            buildable=true; build_method="make"; source_url="https://github.com/hashcat/hashcat" ;;
+        john)
+            buildable=true; build_method="make"; source_url="https://github.com/openwall/john" ;;
+        hydra)
+            buildable=true; build_method="make"; source_url="https://github.com/vanhauser-thc/thc-hydra" ;;
+        medusa)
+            buildable=true; build_method="make"; source_url="https://github.com/jmk-foofus/medusa" ;;
+        ncrack)
+            buildable=true; build_method="make"; source_url="https://github.com/nmap/ncrack" ;;
+        crunch)
+            buildable=true; build_method="make"; source_url="https://github.com/crunchsec/crunch" ;;
+        aircrack-ng)
+            buildable=true; build_method="make"; source_url="https://github.com/aircrack-ng/aircrack-ng" ;;
+        dirb)
+            buildable=true; build_method="make"; source_url="https://github.com/v00d00sec/dirb" ;;
+        sleuthkit)
+            buildable=true; build_method="make"; source_url="https://github.com/sleuthkit/sleuthkit" ;;
+        radare2)
+            buildable=true; build_method="make"; source_url="https://github.com/radareorg/radare2" ;;
+        checksec)
+            buildable=true; build_method="make"; source_url="https://github.com/slimm609/checksec.sh" ;;
+        bulk-extractor)
+            buildable=true; build_method="make"; source_url="https://github.com/simsong/bulk_extractor" ;;
+        proxychains)
+            buildable=true; build_method="make"; source_url="https://github.com/rofl0r/proxychains-ng" ;;
+        stunnel)
+            buildable=true; build_method="make"; source_url="https://github.com/mtrojnar/stunnel" ;;
+        socat)
+            buildable=true; build_method="make"; source_url="https://repo.or.cz/socat.git" ;;
+            
+        # Perl / Ruby / Other tools
+        nikto)
+            buildable=true; build_method="git"; source_url="https://github.com/sullo/nikto" ;;
+        wpscan)
+            buildable=true; build_method="gem"; source_url="https://github.com/wpscanteam/wpscan" ;;
+        whatweb)
+            buildable=true; build_method="git"; source_url="https://github.com/urbanadventurer/WhatWeb" ;;
+        beef)
+            buildable=true; build_method="git"; source_url="https://github.com/beefproject/beef" ;;
+        cewl)
+            buildable=true; build_method="gem"; source_url="https://github.com/digininja/CeWL" ;;
+        autopsy)
+            buildable=true; build_method="git"; source_url="https://github.com/sleuthkit/autopsy" ;;
+        rizin)
+            buildable=true; build_method="cmake"; source_url="https://github.com/rizinorg/rizin" ;;
+            
         *)
-            # Default: check if it's a known GitHub repo
             buildable=false
             build_method="unknown"
             ;;
@@ -601,6 +672,102 @@ check_build_from_source() {
         return 0
     else
         echo "NOT_BUILDABLE"
+        return 1
+    fi
+}
+
+build_from_source() {
+    local tool="$1"
+    local build_info
+    build_info=$(check_build_from_source "${tool}" "" || true)
+    
+    if [[ "${build_info}" != BUILDABLE:* ]]; then
+        warn "No source build recipe available for ${tool}"
+        return 1
+    fi
+    
+    local build_method
+    local source_url
+    build_method=$(echo "${build_info}" | cut -d: -f2)
+    source_url=$(echo "${build_info}" | cut -d: -f3-)
+    
+    info "Building ${tool} from source using ${build_method} (${source_url})..."
+    
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        info "[DRY RUN] Build ${tool} from ${source_url} via ${build_method}"
+        return 0
+    fi
+    
+    local build_dir="/tmp/kali-tools-build/${tool}"
+    rm -rf "${build_dir}"
+    mkdir -p "${build_dir}"
+    
+    local success=false
+    case "${build_method}" in
+        go)
+            if command -v go &>/dev/null; then
+                export GOPATH="${build_dir}/go"
+                export GOBIN="/usr/local/bin"
+                go install "${source_url}@latest" 2>&1 | tee -a "${LOG_FILE}" && success=true
+            else
+                warn "Go compiler is required to build ${tool} but not installed"
+            fi
+            ;;
+        pip)
+            if command -v pip3 &>/dev/null; then
+                pip3 install --prefix=/usr/local "${tool}" 2>&1 | tee -a "${LOG_FILE}" && success=true
+            elif command -v pip &>/dev/null; then
+                pip install --prefix=/usr/local "${tool}" 2>&1 | tee -a "${LOG_FILE}" && success=true
+            else
+                warn "pip/pip3 is required to install ${tool} but not installed"
+            fi
+            ;;
+        gem)
+            if command -v gem &>/dev/null; then
+                gem install "${tool}" 2>&1 | tee -a "${LOG_FILE}" && success=true
+            else
+                warn "Ruby gem is required to install ${tool} but not installed"
+            fi
+            ;;
+        make|cmake)
+            if command -v git &>/dev/null && command -v make &>/dev/null; then
+                if git clone --depth 1 "${source_url}.git" "${build_dir}/src" 2>&1 | tee -a "${LOG_FILE}" || git clone --depth 1 "${source_url}" "${build_dir}/src" 2>&1 | tee -a "${LOG_FILE}"; then
+                    pushd "${build_dir}/src" >/dev/null
+                    if [[ -f "Makefile" ]]; then
+                        make && make install 2>&1 | tee -a "${LOG_FILE}" && success=true
+                    elif [[ -f "CMakeLists.txt" ]] && command -v cmake &>/dev/null; then
+                        cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local && cmake --build build && cmake --install build 2>&1 | tee -a "${LOG_FILE}" && success=true
+                    fi
+                    popd >/dev/null
+                fi
+            else
+                warn "git and make/cmake are required to build ${tool} but not installed"
+            fi
+            ;;
+        git)
+            if command -v git &>/dev/null; then
+                if git clone --depth 1 "${source_url}" "/opt/${tool}" 2>&1 | tee -a "${LOG_FILE}"; then
+                    if [[ -f "/opt/${tool}/${tool}.pl" ]]; then
+                        ln -sf "/opt/${tool}/${tool}.pl" "/usr/local/bin/${tool}" && success=true
+                    elif [[ -f "/opt/${tool}/${tool}.py" ]]; then
+                        ln -sf "/opt/${tool}/${tool}.py" "/usr/local/bin/${tool}" && success=true
+                    elif [[ -f "/opt/${tool}/${tool}.rb" ]]; then
+                        ln -sf "/opt/${tool}/${tool}.rb" "/usr/local/bin/${tool}" && success=true
+                    elif [[ -f "/opt/${tool}/${tool}" ]]; then
+                        ln -sf "/opt/${tool}/${tool}" "/usr/local/bin/${tool}" && success=true
+                    else
+                        success=true
+                    fi
+                fi
+            fi
+            ;;
+    esac
+    
+    rm -rf "${build_dir}"
+    if [[ "${success}" == "true" ]]; then
+        return 0
+    else
+        warn "Source build failed for ${tool}"
         return 1
     fi
 }

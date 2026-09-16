@@ -6,11 +6,13 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 
 - **Cross-distribution support**: Automatically detects your distribution and uses the appropriate package manager
 - **Extensive Kali toolset**: Installs curated penetration testing and security auditing tools across 12 categories
+- **100% Arch Linux / CachyOS coverage**: Complete official repo and AUR mappings for all 171 tools with native `pacman` and unprivileged `yay`/`paru` helper integration
+- **Build-from-source engine**: Automated fallback compilation for tools missing from native repos (supports Go, Python/pip, CMake, Make, and Git clones)
 - **High-performance batch installation**: Bundles packages into single native package transactions with automatic individual-package fallback on failure
 - **In-memory package resolution**: $O(1)$ tool-to-distro package mapping lookup without repeated disk/awk overhead
 - **Interactive & non-interactive modes**: Run manually or automate in CI/CD
 - **Modular design**: Easy to extend for new distributions
-- **Package availability precheck**: Query repositories before installing to see what's available
+- **Package availability precheck & dry-run**: Query repositories before installing to see what's available and preview planned execution commands without root privileges
 
 ## Quick Start
 
@@ -77,9 +79,9 @@ sudo ./install.sh --distro slackware --categories "password,wireless" --yes
 ./install.sh --distro fedora --dry-run
 ```
 
-### Package Availability Precheck
+### Package Availability Precheck & Dry-Run
 
-Before installing, check what packages are actually available in your distribution's repositories (works without root):
+Before installing, check what packages are actually available in your distribution's repositories, or preview the complete execution pipeline without making changes (works without root):
 
 ```bash
 # Check all categories for a distro
@@ -88,11 +90,11 @@ Before installing, check what packages are actually available in your distributi
 # Check specific categories
 ./install.sh --distro arch --categories "web,password" --precheck
 
-# Check for a different distro (e.g., openSUSE)
-./install.sh --distro opensuse --precheck
+# Combine precheck with dry-run to inspect repo availability AND preview install commands
+./install.sh --distro arch --categories "web,vuln" --precheck --dry-run
 
-# Combined with categories to inspect availability
-./install.sh --distro fedora --categories "web,vuln" --precheck
+# Dry run on a foreign distro
+./install.sh --distro fedora --dry-run
 ```
 
 The precheck queries your distribution's package repositories and shows:
@@ -100,6 +102,8 @@ The precheck queries your distribution's package repositories and shows:
 - **Missing packages**: Lists tools not found in repositories
 - **Buildable from source**: Identifies missing packages that can be compiled (Go, Python, CMake, make, etc.)
 - **Overall summary**: Total availability percentage across all categories
+
+When combined with `--dry-run`, the installer evaluates availability, plans the batch native package transactions, falls back to source compilation where recipes exist, and outputs the exact command lines that would be executed.
 
 ### Command Line Options
 
@@ -109,11 +113,11 @@ The precheck queries your distribution's package repositories and shows:
 | `--categories <list>` | Comma-separated categories to install |
 | `--tools <list>` | Comma-separated specific tools to install |
 | `--yes`, `-y` | Skip confirmations |
-| `--dry-run` | Show packages without installing |
+| `--dry-run` | Preview planned native package commands and source builds without installing |
+| `--precheck` | Check repository package availability and buildability (combines with `--dry-run`) |
 | `--no-update` | Skip package database update |
 | `--log-file <path>` | Custom log location (default: /var/log/kali-tools-install.log, fallback /tmp) |
 | `--list-installed` | List installed Kali tools |
-| `--precheck` | Check package availability in repos (no install) |
 | `--help`, `-h` | Show help |
 
 ## Tool Categories
@@ -171,23 +175,36 @@ grep -E "(SUCCESS|FAILED|SUMMARY)" /var/log/kali-tools-install.log
 
 ### Common Issues
 
-**Package not found errors**
+**Package not found in official repos (Arch/AUR)**
+On Arch Linux and CachyOS, tools not in official repositories are installed seamlessly via AUR helpers (`yay` or `paru`). When the installer runs under `sudo`, it automatically drops privileges to run AUR helpers as the invoking user (`sudo -u "${SUDO_USER}"`):
 ```bash
-# Update package databases first
-sudo ./install.sh --no-update  # Skip if already updated
+# Ensure base development packages and an AUR helper are present
+sudo pacman -S --needed base-devel git
+# Install yay or paru if not already installed
 ```
 
-**Missing dependencies (Arch/AUR)**
+**Build-from-source fallback**
+When a package is neither in native package manager repositories nor available via AUR, the installer checks for an upstream compilation recipe:
+- **Go**: `go install <url>@latest`
+- **Python**: `pip install --upgrade <url>`
+- **CMake**: `cmake -B build && cmake --build build && cmake --install build`
+- **Make**: `make && make install`
+- **Git**: `git clone <url> /opt/<tool>`
+
+**Package database out of sync**
 ```bash
-# Install AUR helper first
-sudo pacman -S --needed base-devel git
-# Then run installer (uses yay/paru if available)
+# Force package database update
+sudo ./install.sh
+# Or skip if already up-to-date
+sudo ./install.sh --no-update
 ```
 
 **Permission denied**
 ```bash
-# Ensure running as root
+# Ensure running as root for actual installations
 sudo ./install.sh
+# Read-only operations (--dry-run, --precheck, --list-installed, --help) do not require root
+./install.sh --dry-run
 ```
 
 **Network issues**

@@ -109,6 +109,12 @@ EOF
 }
 
 print_summary() {
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        echo
+        info "Dry run complete."
+        return 0
+    fi
+    
     local total=${#INSTALL_RESULTS[@]}
     local success_count=0
     local fail_count=0
