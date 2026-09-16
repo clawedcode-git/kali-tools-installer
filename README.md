@@ -84,6 +84,9 @@ sudo ./install.sh --distro debian --categories "web,vuln,forensics" --yes
 # Install on Slackware
 sudo ./install.sh --distro slackware --categories "password,wireless" --yes
 
+# Install tools while skipping automatic dependency pre-installation
+sudo ./install.sh --distro arch --tools nmap,wireshark --no-deps --yes
+
 # Dry run (show what would be installed, unprivileged)
 ./install.sh --distro fedora --preset top10 --dry-run
 ```
@@ -113,6 +116,7 @@ The precheck queries your distribution's package repositories and shows:
 - **Per-category / per-preset statistics**: Total tools, available count, percentage, missing count
 - **Missing packages**: Lists tools not found in repositories
 - **Buildable from source**: Identifies missing packages that can be compiled (Go, Python, CMake, make, etc.)
+- **Runtime dependencies**: Identifies and lists runtime dependencies required across selected tools
 - **Overall summary**: Total availability percentage across all categories
 
 When combined with `--dry-run`, the installer evaluates availability, plans the batch native package transactions, falls back to source compilation where recipes exist, and outputs the exact command lines that would be executed.
