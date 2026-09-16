@@ -13,11 +13,11 @@ load_tool_list() {
         exit 1
     fi
     
-    unset TOOL_CATEGORIES["_init"] 2>/dev/null || true
-    unset TOOL_DESCRIPTIONS["_init"] 2>/dev/null || true
-    unset CATEGORY_TOOLS["_init"] 2>/dev/null || true
-    unset TOOL_PKG_MAPPINGS["_init"] 2>/dev/null || true
-    unset TOOL_DEPS["_init"] 2>/dev/null || true
+    TOOL_CATEGORIES=()
+    TOOL_DESCRIPTIONS=()
+    CATEGORY_TOOLS=()
+    TOOL_PKG_MAPPINGS=()
+    TOOL_DEPS=()
     
     local tool category desc debian_pkg arch_pkg fedora_pkg slackware_pkg opensuse_pkg gentoo_pkg alpine_pkg void_pkg deps
     while IFS='|' read -r tool category desc debian_pkg arch_pkg fedora_pkg slackware_pkg opensuse_pkg gentoo_pkg alpine_pkg void_pkg deps; do
@@ -71,7 +71,13 @@ get_tool_deps() {
 }
 
 get_all_deps_for_tools() {
-    local -a tools=("$@")
+    local -a raw_args=("$@")
+    local -a tools=()
+    for arg in "${raw_args[@]}"; do
+        for t in ${arg//,/ }; do
+            tools+=("${t}")
+        done
+    done
     local -A seen_deps=()
     local -a result=()
     

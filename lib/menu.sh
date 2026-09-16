@@ -65,6 +65,7 @@ bbs_main_menu() {
                 if bbs_uninstall_menu; then
                     return 0
                 fi
+                UNINSTALL=false
                 ;;
             7)
                 echo
@@ -203,7 +204,8 @@ bbs_tools_menu() {
         return 1
     fi
     
-    IFS=',' read -ra SELECTED_TOOLS <<< "${input}"
+    local sanitized="${input//,/ }"
+    read -ra SELECTED_TOOLS <<< "${sanitized}"
     local -a valid_tools=()
     for tool in "${SELECTED_TOOLS[@]}"; do
         tool="${tool#"${tool%%[![:space:]]*}"}"

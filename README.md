@@ -279,6 +279,12 @@ dry_run = false
 
 # Terminal UI / Banner Styling
 no_tui = false
+
+# Repository availability precheck
+precheck = false
+
+# Uninstallation mode
+uninstall = false
 ```
 
 ```bash

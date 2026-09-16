@@ -197,6 +197,20 @@ load_config_file() {
                     DRY_RUN=false
                 fi
                 ;;
+            precheck)
+                if [[ "${val,,}" =~ ^(true|yes|1)$ ]]; then
+                    PRECHECK=true
+                else
+                    PRECHECK=false
+                fi
+                ;;
+            uninstall|remove)
+                if [[ "${val,,}" =~ ^(true|yes|1)$ ]]; then
+                    UNINSTALL=true
+                else
+                    UNINSTALL=false
+                fi
+                ;;
             no_tui|plain)
                 if [[ "${val,,}" =~ ^(true|yes|1)$ ]]; then
                     NO_TUI=true

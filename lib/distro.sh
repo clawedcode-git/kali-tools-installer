@@ -8,6 +8,7 @@ detect_distro() {
     
     if [[ -n "${FORCE_DISTRO:-}" ]]; then
         id="${FORCE_DISTRO,,}"
+        DISTRO_NAME="${id}"
         warn "Forcing distribution: ${id}"
     elif [[ -f "${os_release}" ]]; then
         source "${os_release}" 2>/dev/null || true
@@ -87,10 +88,13 @@ detect_distro() {
     
     info "Detected distribution: ${DISTRO} (family: ${DISTRO_FAMILY})"
     info "Package manager: ${PACKAGE_MANAGER}"
+    export DISTRO DISTRO_FAMILY PACKAGE_MANAGER DISTRO_NAME
 }
 
 get_distro_pkg_name() {
     local tool="$1"
+    tool="${tool#"${tool%%[![:space:]]*}"}"
+    tool="${tool%"${tool##*[![:space:]]}"}"
     local family="${DISTRO_FAMILY:-debian}"
     
     if [[ ${#TOOL_PKG_MAPPINGS[@]} -eq 0 && -f "${KALI_TOOLS_LIST:-}" ]]; then

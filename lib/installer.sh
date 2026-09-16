@@ -8,9 +8,9 @@ parse_args() {
     declare -g DRY_RUN="${DRY_RUN:-false}"
     declare -g ASSUME_YES="${ASSUME_YES:-false}"
     declare -g SKIP_UPDATE="${SKIP_UPDATE:-false}"
-    declare -g LIST_INSTALLED=false
-    declare -g SHOW_HELP=false
-    declare -g PRECHECK=false
+    declare -g LIST_INSTALLED="${LIST_INSTALLED:-false}"
+    declare -g SHOW_HELP="${SHOW_HELP:-false}"
+    declare -g PRECHECK="${PRECHECK:-false}"
     declare -g ENABLE_BLACKARCH="${ENABLE_BLACKARCH:-false}"
     declare -g SELECTED_PRESET="${SELECTED_PRESET:-}"
     declare -g INSTALL_DEPS="${INSTALL_DEPS:-true}"
@@ -36,7 +36,8 @@ parse_args() {
                     print_help
                     exit 1
                 fi
-                IFS=',' read -ra SELECTED_CATEGORIES <<< "$2"
+                local sanitized_cats="${2//,/ }"
+                read -ra SELECTED_CATEGORIES <<< "${sanitized_cats}"
                 SELECTED_PRESET=""
                 SELECTED_TOOLS=()
                 shift 2
@@ -47,7 +48,8 @@ parse_args() {
                     print_help
                     exit 1
                 fi
-                IFS=',' read -ra SELECTED_TOOLS <<< "$2"
+                local sanitized_tools="${2//,/ }"
+                read -ra SELECTED_TOOLS <<< "${sanitized_tools}"
                 SELECTED_PRESET=""
                 SELECTED_CATEGORIES=()
                 shift 2
@@ -152,7 +154,7 @@ parse_args() {
         esac
     done
     
-    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL CONFIG_FILE NO_TUI
+    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL CONFIG_FILE NO_TUI LIST_INSTALLED
 }
 
 print_help() {
@@ -228,13 +230,19 @@ select_installation_scope() {
     fi
     
     if [[ -t 0 && "${NO_TUI:-false}" != "true" && "${ASSUME_YES:-false}" != "true" ]]; then
-        bbs_main_menu
+        if [[ "${UNINSTALL:-false}" == "true" ]]; then
+            bbs_uninstall_menu
+        else
+            bbs_main_menu
+        fi
         return
     fi
     
     print_banner
     echo
-    info "Select installation scope:"
+    local action_title="installation"
+    [[ "${UNINSTALL:-false}" == "true" ]] && action_title="uninstallation"
+    info "Select ${action_title} scope:"
     echo "  1) All Kali tools (~171 packages)"
     echo "  2) Tool presets (top10, default, headless, web, wireless, passwords)"
     echo "  3) Select categories"
@@ -386,6 +394,11 @@ confirm_installation() {
 }
 
 confirm_uninstallation() {
+    if [[ ${#TOOLS_TO_INSTALL[@]} -eq 0 ]]; then
+        error "No tools targeted for uninstallation"
+        exit 1
+    fi
+    
     info "Targeting ${#TOOLS_TO_INSTALL[@]} tools for uninstallation..."
     local installed_count=0
     for tool in "${TOOLS_TO_INSTALL[@]}"; do

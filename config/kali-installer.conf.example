@@ -109,3 +109,19 @@
 # Options: true, false
 # Default: false
 # no_tui = false
+
+# -----------------------------------------------------------------------------
+# Repository Availability Precheck
+# -----------------------------------------------------------------------------
+# Query package availability across repositories prior to executing changes.
+# Options: true, false
+# Default: false
+# precheck = false
+
+# -----------------------------------------------------------------------------
+# Uninstallation Mode
+# -----------------------------------------------------------------------------
+# Remove selected tools or presets via native package managers and clean source files.
+# Options: true, false
+# Default: false
+# uninstall = false

@@ -661,7 +661,7 @@ test_ci_and_docker_automation() {
 test_bbs_banner_rendering() {
     test_log "Testing Concept A ASCII banner rendering..."
     local out
-    out=$(bash -c "source '${PROJECT_ROOT}/lib/utils.sh'; source '${PROJECT_ROOT}/lib/packages.sh'; DISTRO='cachyos'; DISTRO_FAMILY='arch'; PACKAGE_MANAGER='pacman'; ENABLE_BLACKARCH='true'; print_banner" 2>&1)
+    out=$(bash -c "source '${PROJECT_ROOT}/lib/utils.sh'; source '${PROJECT_ROOT}/lib/packages.sh'; DISTRO_NAME='cachyos'; DISTRO='arch'; DISTRO_FAMILY='arch'; PACKAGE_MANAGER='pacman'; ENABLE_BLACKARCH='true'; print_banner" 2>&1)
     echo "${out}" | grep -q "OFFENSIVE SECURITY TOOLSET" || { test_log "FAIL: banner missing OFFENSIVE SECURITY TOOLSET: ${out}"; return 1; }
     echo "${out}" | grep -q "OS: cachyos" || { test_log "FAIL: banner missing OS: cachyos: ${out}"; return 1; }
     echo "${out}" | grep -q "PkgMgr: pacman" || { test_log "FAIL: banner missing PkgMgr: pacman: ${out}"; return 1; }
@@ -746,6 +746,23 @@ test_pip_break_system_packages_flag() {
     test_log "PASS: pip build-from-source flag safety verified"
 }
 
+test_load_tool_list_idempotent() {
+    test_log "Testing load_tool_list idempotence across multiple invocations..."
+    local count1 count2
+    count1=$(bash -c "source '${PROJECT_ROOT}/lib/utils.sh'; source '${PROJECT_ROOT}/lib/distro.sh'; source '${PROJECT_ROOT}/lib/packages.sh'; load_tool_list; wc -w <<< \"\${CATEGORY_TOOLS['info']}\"")
+    count2=$(bash -c "source '${PROJECT_ROOT}/lib/utils.sh'; source '${PROJECT_ROOT}/lib/distro.sh'; source '${PROJECT_ROOT}/lib/packages.sh'; load_tool_list; load_tool_list; wc -w <<< \"\${CATEGORY_TOOLS['info']}\"")
+    [[ "${count1}" == "${count2}" ]] || { test_log "FAIL: load_tool_list duplicated entries (${count1} vs ${count2})"; return 1; }
+    test_log "PASS: load_tool_list idempotence verified"
+}
+
+test_uninstall_empty_target_guard() {
+    test_log "Testing uninstallation empty target guard..."
+    local out
+    out=$(bash -c "source '${PROJECT_ROOT}/lib/utils.sh'; source '${PROJECT_ROOT}/lib/distro.sh'; source '${PROJECT_ROOT}/lib/packages.sh'; source '${PROJECT_ROOT}/lib/installer.sh'; TOOLS_TO_INSTALL=(); confirm_uninstallation" 2>&1 || true)
+    echo "${out}" | grep -q "No tools targeted for uninstallation" || { test_log "FAIL: empty uninstallation guard failed: ${out}"; return 1; }
+    test_log "PASS: uninstallation empty target guard verified"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -802,6 +819,8 @@ run_tests() {
     test_menu_all_categories_multiline || ((failed+=1))
     test_uninstallation_routing_order || ((failed+=1))
     test_pip_break_system_packages_flag || ((failed+=1))
+    test_load_tool_list_idempotent || ((failed+=1))
+    test_uninstall_empty_target_guard || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then
