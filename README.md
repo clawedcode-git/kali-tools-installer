@@ -1,5 +1,11 @@
 # Kali Tools Installer
 
+[![CI](https://github.com/clawedcode-git/kali-tools-installer/actions/workflows/ci.yml/badge.svg)](https://github.com/clawedcode-git/kali-tools-installer/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Bash](https://img.shields.io/badge/Bash-4.0%2B-brightgreen.svg)](https://www.gnu.org/software/bash/)
+[![Platform](https://img.shields.io/badge/Platform-Linux-blue.svg)](#supported-distributions)
+[![Tools](https://img.shields.io/badge/Tools-171%20Curated-red.svg)](#master-tool-list)
+
 A universal shell script to install all Kali Linux tools on any Linux distribution. Primary target: CachyOS (Arch-based). Supports Debian, Ubuntu, Fedora, Arch, Slackware, and more.
 
 ## Features
@@ -174,7 +180,7 @@ When combined with `--dry-run`, the installer evaluates availability, plans the 
 | `--enable-blackarch` | Enable BlackArch repository on Arch/CachyOS |
 | `--no-tui`, `--plain` | Disable ASCII banner styling and BBS interactive menus |
 | `--no-update` | Skip package database update |
-| `--no-deps` | Skip automatic dependency pre-installation |
+| `--no-deps`, `--skip-deps` | Skip automatic dependency pre-installation |
 | `--uninstall`, `--remove` | Uninstall targeted tools, presets, or categories |
 | `--log-file <path>` | Custom log location (default: /var/log/kali-tools-install.log, fallback /tmp) |
 | `--list-installed` | List installed Kali tools |
@@ -267,6 +273,9 @@ yes = false
 
 # Dry-run execution preview
 dry_run = false
+
+# Terminal UI / Banner Styling
+no_tui = false
 ```
 
 ```bash

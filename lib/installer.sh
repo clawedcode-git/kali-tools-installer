@@ -161,7 +161,7 @@ print_help() {
 Usage: $(basename "$0") [OPTIONS]
 
 Options:
-    --distro <name>         Force distribution (arch, debian, fedora, slackware, opensuse)
+    --distro <name>         Force distribution (arch, debian, fedora, slackware, opensuse, gentoo, alpine, void)
     --preset <name>         Install curated preset (top10, default, headless, web, wireless, passwords)
     --categories <list>     Comma-separated categories to install
     --tools <list>          Comma-separated specific tools to install
