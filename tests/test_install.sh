@@ -408,6 +408,84 @@ test_preset_validation() {
     test_log "PASS: Invalid preset rejected cleanly"
 }
 
+test_tool_deps_cache() {
+    test_log "Testing TOOL_DEPS cache and get_tool_deps retrieval..."
+    load_tool_list
+    local nmap_deps
+    nmap_deps=$(get_tool_deps "nmap")
+    [[ "${nmap_deps}" == "python3-pip,curl" ]] || { test_log "FAIL: expected nmap deps 'python3-pip,curl', got '${nmap_deps}'"; return 1; }
+    
+    local ws_deps
+    ws_deps=$(get_tool_deps "wireshark")
+    [[ "${ws_deps}" == "libpcap" ]] || { test_log "FAIL: expected wireshark deps 'libpcap', got '${ws_deps}'"; return 1; }
+    
+    test_log "PASS: TOOL_DEPS cache correctly populated and queryable"
+}
+
+test_get_all_deps_for_tools() {
+    test_log "Testing get_all_deps_for_tools aggregation and deduplication..."
+    load_tool_list
+    local deps=()
+    mapfile -t deps < <(get_all_deps_for_tools "nmap" "wireshark" "tshark" "tcpdump" "bettercap")
+    local dep_str="${deps[*]}"
+    
+    echo "${dep_str}" | grep -q "python3-pip" || { test_log "FAIL: missing python3-pip in aggregated deps: ${dep_str}"; return 1; }
+    echo "${dep_str}" | grep -q "curl" || { test_log "FAIL: missing curl in aggregated deps: ${dep_str}"; return 1; }
+    echo "${dep_str}" | grep -q "libpcap" || { test_log "FAIL: missing libpcap in aggregated deps: ${dep_str}"; return 1; }
+    echo "${dep_str}" | grep -q "go" || { test_log "FAIL: missing go in aggregated deps: ${dep_str}"; return 1; }
+    
+    # Check that libpcap appears only once (deduplicated across wireshark, tshark, tcpdump, bettercap)
+    local libpcap_count=0
+    for d in "${deps[@]}"; do
+        [[ "${d}" == "libpcap" ]] && ((libpcap_count+=1))
+    done
+    [[ ${libpcap_count} -eq 1 ]] || { test_log "FAIL: libpcap not deduplicated (count: ${libpcap_count})"; return 1; }
+    
+    test_log "PASS: get_all_deps_for_tools aggregates and deduplicates correctly"
+}
+
+test_resolve_dep_pkg() {
+    test_log "Testing resolve_dep_pkg across distributions..."
+    [[ $(resolve_dep_pkg "python3-pip" "arch") == "python-pip" ]] || { test_log "FAIL: arch python3-pip mapping"; return 1; }
+    [[ $(resolve_dep_pkg "python3-pip" "alpine") == "py3-pip" ]] || { test_log "FAIL: alpine python3-pip mapping"; return 1; }
+    [[ $(resolve_dep_pkg "go" "debian") == "golang-go" ]] || { test_log "FAIL: debian go mapping"; return 1; }
+    [[ $(resolve_dep_pkg "go" "fedora") == "golang" ]] || { test_log "FAIL: fedora go mapping"; return 1; }
+    [[ $(resolve_dep_pkg "libpcap" "debian") == "libpcap-dev" ]] || { test_log "FAIL: debian libpcap mapping"; return 1; }
+    [[ $(resolve_dep_pkg "base-devel" "debian") == "build-essential" ]] || { test_log "FAIL: debian base-devel mapping"; return 1; }
+    [[ $(resolve_dep_pkg "curl" "gentoo") == "net-misc/curl" ]] || { test_log "FAIL: gentoo curl mapping"; return 1; }
+    test_log "PASS: resolve_dep_pkg translates accurately across distributions"
+}
+
+test_build_prerequisites() {
+    test_log "Testing get_build_prerequisites for source builds..."
+    local go_pre
+    go_pre=$(get_build_prerequisites "go")
+    echo "${go_pre}" | grep -q "go" || { test_log "FAIL: go prerequisites missing go"; return 1; }
+    echo "${go_pre}" | grep -q "git" || { test_log "FAIL: go prerequisites missing git"; return 1; }
+    
+    local cmake_pre
+    cmake_pre=$(get_build_prerequisites "cmake")
+    echo "${cmake_pre}" | grep -q "cmake" || { test_log "FAIL: cmake prerequisites missing cmake"; return 1; }
+    echo "${cmake_pre}" | grep -q "make" || { test_log "FAIL: cmake prerequisites missing make"; return 1; }
+    echo "${cmake_pre}" | grep -q "gcc" || { test_log "FAIL: cmake prerequisites missing gcc"; return 1; }
+    
+    test_log "PASS: get_build_prerequisites definitions verified"
+}
+
+test_dependency_resolution_cli() {
+    test_log "Testing dependency resolution via CLI dry-run and --no-deps..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --preset top10 --dry-run 2>&1)
+    echo "${out}" | grep -q "Resolving dependencies for 10 tools" || { test_log "FAIL: dry run missing dependency resolution: ${out}"; return 1; }
+    echo "${out}" | grep -q "Would install dependencies:" || { test_log "FAIL: dry run missing planned dependency install: ${out}"; return 1; }
+    
+    local out_nodeps
+    out_nodeps=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --preset top10 --dry-run --no-deps 2>&1)
+    echo "${out_nodeps}" | grep -q "Dependency auto-installation skipped (--no-deps)" || { test_log "FAIL: --no-deps did not skip dependency resolution: ${out_nodeps}"; return 1; }
+    
+    test_log "PASS: CLI dependency resolution and --no-deps verified"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -443,6 +521,11 @@ run_tests() {
     test_preset_cli_dry_run || ((failed+=1))
     test_preset_precheck || ((failed+=1))
     test_preset_validation || ((failed+=1))
+    test_tool_deps_cache || ((failed+=1))
+    test_get_all_deps_for_tools || ((failed+=1))
+    test_resolve_dep_pkg || ((failed+=1))
+    test_build_prerequisites || ((failed+=1))
+    test_dependency_resolution_cli || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then

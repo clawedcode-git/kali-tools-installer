@@ -10,6 +10,7 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 - **100% Arch Linux / CachyOS coverage**: Complete official repo and AUR mappings for all 171 tools with native `pacman` and unprivileged `yay`/`paru` helper integration
 - **BlackArch repository integration**: Optional bootstrapping of BlackArch repositories on Arch/CachyOS (`--enable-blackarch`) providing access to thousands of precompiled security packages
 - **Build-from-source engine**: Automated fallback compilation for tools missing from native repos (supports Go, Python/pip, CMake, Make, and Git clones)
+- **Automated dependency resolution**: Resolves and pre-installs required runtime dependencies (`deps` column) and automatically provisions build prerequisites (`go`, `python3-pip`, `cmake`, `make`, `gcc`, `git`) before compiling source fallbacks
 - **High-performance batch installation**: Bundles packages into single native package transactions with automatic individual-package fallback on failure
 - **In-memory package resolution**: $O(1)$ tool-to-distro package mapping lookup without repeated disk/awk overhead
 - **Interactive & non-interactive modes**: Run manually or automate in CI/CD
@@ -129,6 +130,7 @@ When combined with `--dry-run`, the installer evaluates availability, plans the 
 | `--precheck` | Check repository package availability and buildability (combines with `--dry-run`) |
 | `--enable-blackarch` | Enable BlackArch repository on Arch/CachyOS |
 | `--no-update` | Skip package database update |
+| `--no-deps` | Skip automatic dependency pre-installation |
 | `--log-file <path>` | Custom log location (default: /var/log/kali-tools-install.log, fallback /tmp) |
 | `--list-installed` | List installed Kali tools |
 | `--help`, `-h` | Show help |
@@ -227,6 +229,9 @@ When a package is neither in native package manager repositories nor available v
 - **Make**: `make && make install`
 - **Git**: `git clone <url> /opt/<tool>`
 
+**Automatic Dependency Resolution & Build Prerequisites**
+The installer reads the `deps` column in `config/kali-tools.list` to identify runtime requirements (`libpcap`, `python3-pip`, `curl`, `git`, `ruby`, etc.) and automatically installs them via the native package manager before installing tools. When falling back to compiling from source, build prerequisites (`go`, `python3-pip`, `cmake`, `make`, `gcc`, `git`, `base-devel`) are verified and provisioned automatically beforehand. To skip dependency management, pass `--no-deps`.
+
 **Package database out of sync**
 ```bash
 # Force package database update
@@ -286,7 +291,7 @@ kali-tools-installer/
 
 ### Running Tests
 
-The test suite contains 29 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, BlackArch repository bootstrapping, tool presets, build recipes, and clean logging:
+The test suite contains 34 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, BlackArch repository bootstrapping, tool presets, dependency resolution, build recipes, and clean logging:
 
 ```bash
 # Run the complete test suite

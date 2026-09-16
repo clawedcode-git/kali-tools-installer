@@ -80,6 +80,10 @@ parse_args() {
                 export SKIP_UPDATE
                 shift
                 ;;
+            --no-deps|--skip-deps)
+                INSTALL_DEPS=false
+                shift
+                ;;
             --log-file)
                 if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
                     error "Option $1 requires an argument"
@@ -114,7 +118,7 @@ parse_args() {
         esac
     done
     
-    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET
+    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS
 }
 
 print_help() {
@@ -130,6 +134,7 @@ Options:
     --yes, -y               Skip confirmations
     --dry-run               Show packages without installing
     --no-update             Skip package database update
+    --no-deps               Skip automatic dependency installation
     --enable-blackarch      Enable BlackArch repository on Arch/CachyOS
     --log-file <path>       Custom log location
     --list-installed        List installed Kali tools
@@ -530,12 +535,110 @@ run_cmd() {
     return ${PIPESTATUS[0]}
 }
 
+is_pkg_installed() {
+    local pkg="$1"
+    [[ -z "${pkg}" ]] && return 1
+    
+    case "${PACKAGE_MANAGER}" in
+        pacman) pacman -Q "${pkg}" &>/dev/null ;;
+        apt) dpkg-query -W -f='${Status}' "${pkg}" 2>/dev/null | grep -q "ok installed" ;;
+        dnf) rpm -q "${pkg}" &>/dev/null ;;
+        zypper) rpm -q "${pkg}" &>/dev/null ;;
+        apk) apk info -e "${pkg}" &>/dev/null ;;
+        slackpkg) slackpkg search installed "${pkg}" 2>/dev/null | grep -q "^${pkg}" ;;
+        emerge) qlist -I -e "${pkg}" &>/dev/null || equery which "${pkg}" &>/dev/null ;;
+        xbps) xbps-query -s "${pkg}" &>/dev/null ;;
+        *) return 1 ;;
+    esac
+}
+
+install_dependencies() {
+    local -a tools=("$@")
+    if [[ "${INSTALL_DEPS:-true}" != "true" ]]; then
+        info "Dependency auto-installation skipped (--no-deps)"
+        return 0
+    fi
+    
+    local -a all_deps=()
+    mapfile -t all_deps < <(get_all_deps_for_tools "${tools[@]}")
+    
+    if [[ ${#all_deps[@]} -eq 0 ]]; then
+        return 0
+    fi
+    
+    info "Resolving dependencies for ${#tools[@]} tools..."
+    local -a pkgs_to_install=()
+    local -A seen_pkgs=()
+    
+    for dep in "${all_deps[@]}"; do
+        local resolved_pkg
+        resolved_pkg=$(resolve_dep_pkg "${dep}" "${DISTRO_FAMILY}")
+        if [[ -n "${resolved_pkg}" ]]; then
+            local -a split_pkgs=()
+            IFS=',' read -ra split_pkgs <<< "${resolved_pkg}"
+            for p in "${split_pkgs[@]}"; do
+                p="${p#"${p%%[![:space:]]*}"}"
+                p="${p%"${p##*[![:space:]]}"}"
+                if [[ -n "${p}" && -z "${seen_pkgs["${p}"]:-}" ]]; then
+                    seen_pkgs["${p}"]="1"
+                    if ! is_pkg_installed "${p}"; then
+                        pkgs_to_install+=("${p}")
+                    else
+                        debug "Dependency already installed: ${p}"
+                    fi
+                fi
+            done
+        fi
+    done
+    
+    if [[ ${#pkgs_to_install[@]} -eq 0 ]]; then
+        info "All runtime dependencies are already satisfied."
+        return 0
+    fi
+    
+    info "Installing ${#pkgs_to_install[@]} runtime dependencies: ${pkgs_to_install[*]}"
+    
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        info "[DRY RUN] Would install dependencies: ${pkgs_to_install[*]}"
+        return 0
+    fi
+    
+    local res=0
+    case "${PACKAGE_MANAGER}" in
+        pacman) run_cmd pacman -S --noconfirm --needed "${pkgs_to_install[@]}" || res=$? ;;
+        apt) run_cmd apt install -y "${pkgs_to_install[@]}" || res=$? ;;
+        dnf) run_cmd dnf install -y "${pkgs_to_install[@]}" || res=$? ;;
+        zypper) run_cmd zypper install -y "${pkgs_to_install[@]}" || res=$? ;;
+        apk) run_cmd apk add "${pkgs_to_install[@]}" || res=$? ;;
+        xbps) run_cmd xbps-install -y "${pkgs_to_install[@]}" || res=$? ;;
+        emerge) run_cmd emerge "${pkgs_to_install[@]}" || res=$? ;;
+        slackpkg)
+            for p in "${pkgs_to_install[@]}"; do
+                run_cmd slackpkg install "${p}" || res=$?
+            done
+            ;;
+        *)
+            warn "Unknown package manager for dependencies: ${PACKAGE_MANAGER}"
+            res=1
+            ;;
+    esac
+    
+    if [[ ${res} -eq 0 ]]; then
+        success "Dependencies installed successfully."
+    else
+        warn "Some dependencies failed to install (exit code ${res}). Continuing with tool installation..."
+    fi
+    return 0
+}
+
 run_installation() {
     if [[ "${ENABLE_BLACKARCH:-false}" == "true" && "${DISTRO_FAMILY}" == "arch" ]]; then
         setup_blackarch
     fi
     
     update_package_db
+    
+    install_dependencies "${TOOLS_TO_INSTALL[@]}"
     
     info "Starting installation of ${#TOOLS_TO_INSTALL[@]} tools..."
     
@@ -628,21 +731,8 @@ list_installed_tools() {
     for tool in "${all_tools[@]}"; do
         local pkg
         pkg=$(get_distro_pkg_name "${tool}")
-        if [[ -n "${pkg}" ]]; then
-            local installed=false
-            case "${PACKAGE_MANAGER}" in
-                pacman) pacman -Q "${pkg}" &>/dev/null && installed=true ;;
-                apt) dpkg-query -W -f='${Status}' "${pkg}" 2>/dev/null | grep -q "ok installed" && installed=true ;;
-                dnf) rpm -q "${pkg}" &>/dev/null && installed=true ;;
-                zypper) rpm -q "${pkg}" &>/dev/null && installed=true ;;
-                apk) apk info -e "${pkg}" &>/dev/null && installed=true ;;
-                slackpkg) slackpkg search installed "${pkg}" 2>/dev/null | grep -q "^${pkg}" && installed=true ;;
-                emerge) qlist -I -e "${pkg}" &>/dev/null || equery which "${pkg}" &>/dev/null && installed=true ;;
-                xbps) xbps-query -s "${pkg}" &>/dev/null && installed=true ;;
-            esac
-            if [[ "${installed}" == "true" ]]; then
-                echo "${tool} (${pkg})"
-            fi
+        if [[ -n "${pkg}" ]] && is_pkg_installed "${pkg}"; then
+            echo "${tool} (${pkg})"
         fi
     done
 }
@@ -806,6 +896,95 @@ check_build_from_source() {
     fi
 }
 
+ensure_build_prerequisites() {
+    local method="$1"
+    local tool="${2:-}"
+    
+    local prereq_tokens
+    prereq_tokens=$(get_build_prerequisites "${method}")
+    
+    local tool_deps
+    tool_deps=$(get_tool_deps "${tool}")
+    if [[ -n "${tool_deps}" ]]; then
+        prereq_tokens+=" ${tool_deps//,/ }"
+    fi
+    
+    local -a missing_pkgs=()
+    local -A seen_pkgs=()
+    
+    for token in ${prereq_tokens}; do
+        token="${token#"${token%%[![:space:]]*}"}"
+        token="${token%"${token##*[![:space:]]}"}"
+        [[ -z "${token}" ]] && continue
+        
+        local need_install=false
+        case "${token}" in
+            go|golang) command -v go &>/dev/null || need_install=true ;;
+            pip|pip3|python3-pip) command -v pip3 &>/dev/null || command -v pip &>/dev/null || need_install=true ;;
+            python|python3) command -v python3 &>/dev/null || command -v python &>/dev/null || need_install=true ;;
+            git) command -v git &>/dev/null || need_install=true ;;
+            make) command -v make &>/dev/null || need_install=true ;;
+            cmake) command -v cmake &>/dev/null || need_install=true ;;
+            gcc) command -v gcc &>/dev/null || need_install=true ;;
+            ruby|gem) command -v ruby &>/dev/null || command -v gem &>/dev/null || need_install=true ;;
+            *)
+                local pkg
+                pkg=$(resolve_dep_pkg "${token}" "${DISTRO_FAMILY}")
+                if [[ -n "${pkg}" ]] && ! is_pkg_installed "${pkg}"; then
+                    need_install=true
+                fi
+                ;;
+        esac
+        
+        if [[ "${need_install}" == "true" ]]; then
+            local resolved_pkg
+            resolved_pkg=$(resolve_dep_pkg "${token}" "${DISTRO_FAMILY}")
+            if [[ -n "${resolved_pkg}" ]]; then
+                local -a split_pkgs=()
+                IFS=',' read -ra split_pkgs <<< "${resolved_pkg}"
+                for p in "${split_pkgs[@]}"; do
+                    p="${p#"${p%%[![:space:]]*}"}"
+                    p="${p%"${p##*[![:space:]]}"}"
+                    if [[ -n "${p}" && -z "${seen_pkgs["${p}"]:-}" ]]; then
+                        seen_pkgs["${p}"]="1"
+                        if ! is_pkg_installed "${p}"; then
+                            missing_pkgs+=("${p}")
+                        fi
+                    fi
+                done
+            fi
+        fi
+    done
+    
+    if [[ ${#missing_pkgs[@]} -gt 0 ]]; then
+        info "Build prerequisites needed for ${tool} (${method}): ${missing_pkgs[*]}"
+        if [[ "${DRY_RUN}" == "true" ]]; then
+            info "[DRY RUN] Would install build prerequisites: ${missing_pkgs[*]}"
+            return 0
+        fi
+        
+        case "${PACKAGE_MANAGER}" in
+            pacman) run_cmd pacman -S --noconfirm --needed "${missing_pkgs[@]}" ;;
+            apt) run_cmd apt install -y "${missing_pkgs[@]}" ;;
+            dnf) run_cmd dnf install -y "${missing_pkgs[@]}" ;;
+            zypper) run_cmd zypper install -y "${missing_pkgs[@]}" ;;
+            apk) run_cmd apk add "${missing_pkgs[@]}" ;;
+            xbps) run_cmd xbps-install -y "${missing_pkgs[@]}" ;;
+            emerge) run_cmd emerge "${missing_pkgs[@]}" ;;
+            slackpkg)
+                for p in "${missing_pkgs[@]}"; do
+                    run_cmd slackpkg install "${p}"
+                done
+                ;;
+            *)
+                warn "Cannot auto-install build prerequisites on ${PACKAGE_MANAGER}"
+                return 1
+                ;;
+        esac
+    fi
+    return 0
+}
+
 build_from_source() {
     local tool="$1"
     local build_info
@@ -822,6 +1001,8 @@ build_from_source() {
     source_url=$(echo "${build_info}" | cut -d: -f3-)
     
     info "Building ${tool} from source using ${build_method} (${source_url})..."
+    
+    ensure_build_prerequisites "${build_method}" "${tool}" || true
     
     if [[ "${DRY_RUN}" == "true" ]]; then
         info "[DRY RUN] Build ${tool} from ${source_url} via ${build_method}"
@@ -953,6 +1134,11 @@ run_precheck() {
         success "Available in repos: ${p_available} (${p_pct}%)"
         [[ ${p_missing} -gt 0 ]] && error "Missing from repos: ${p_missing}"
         [[ ${p_buildable} -gt 0 ]] && warn "Potentially buildable from source: ${p_buildable}"
+        local -a p_deps=()
+        mapfile -t p_deps < <(get_all_deps_for_tools "${preset_tools[@]}")
+        if [[ ${#p_deps[@]} -gt 0 ]]; then
+            info "Runtime dependencies required (${#p_deps[@]}): ${p_deps[*]}"
+        fi
         if [[ ${#missing_tools[@]} -gt 0 ]]; then
             info "Missing packages:"
             for mt in "${missing_tools[@]}"; do
@@ -975,9 +1161,11 @@ run_precheck() {
         mapfile -t categories < <(get_categories)
     fi
     
+    local -a all_checked_tools=()
     for cat in "${categories[@]}"; do
         local -a tools=()
         read -ra tools <<< "$(get_tools_in_category "${cat}")"
+        all_checked_tools+=("${tools[@]}")
         local cat_total=${#tools[@]}
         local cat_available=0
         local cat_missing=0
@@ -1055,6 +1243,11 @@ run_precheck() {
     error "Missing from repos: ${total_missing}"
     if [[ ${total_buildable} -gt 0 ]]; then
         warn "Potentially buildable from source: ${total_buildable}"
+    fi
+    local -a cat_deps=()
+    mapfile -t cat_deps < <(get_all_deps_for_tools "${all_checked_tools[@]}")
+    if [[ ${#cat_deps[@]} -gt 0 ]]; then
+        info "Runtime dependencies identified (${#cat_deps[@]}): ${cat_deps[*]}"
     fi
     echo
     info "Use --dry-run --yes to see installation plan without building"
