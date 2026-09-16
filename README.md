@@ -7,6 +7,7 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 - **Cross-distribution support**: Automatically detects your distribution and uses the appropriate package manager
 - **Extensive Kali toolset**: Installs curated penetration testing and security auditing tools across 12 categories
 - **100% Arch Linux / CachyOS coverage**: Complete official repo and AUR mappings for all 171 tools with native `pacman` and unprivileged `yay`/`paru` helper integration
+- **BlackArch repository integration**: Optional bootstrapping of BlackArch repositories on Arch/CachyOS (`--enable-blackarch`) providing access to thousands of precompiled security packages
 - **Build-from-source engine**: Automated fallback compilation for tools missing from native repos (supports Go, Python/pip, CMake, Make, and Git clones)
 - **High-performance batch installation**: Bundles packages into single native package transactions with automatic individual-package fallback on failure
 - **In-memory package resolution**: $O(1)$ tool-to-distro package mapping lookup without repeated disk/awk overhead
@@ -115,6 +116,7 @@ When combined with `--dry-run`, the installer evaluates availability, plans the 
 | `--yes`, `-y` | Skip confirmations |
 | `--dry-run` | Preview planned native package commands and source builds without installing |
 | `--precheck` | Check repository package availability and buildability (combines with `--dry-run`) |
+| `--enable-blackarch` | Enable BlackArch repository on Arch/CachyOS |
 | `--no-update` | Skip package database update |
 | `--log-file <path>` | Custom log location (default: /var/log/kali-tools-install.log, fallback /tmp) |
 | `--list-installed` | List installed Kali tools |
@@ -185,6 +187,13 @@ On Arch Linux and CachyOS, tools not in official repositories are installed seam
 sudo pacman -S --needed base-devel git
 # Install yay or paru if not already installed
 ```
+
+**BlackArch repository setup (Arch / CachyOS)**
+You can optionally bootstrap the official BlackArch repository to access over 2,800 precompiled penetration testing tools:
+```bash
+sudo ./install.sh --distro arch --enable-blackarch
+```
+In interactive mode on Arch-based distros, the installer will automatically detect if `[blackarch]` is configured in `/etc/pacman.conf` and offer to configure it for you.
 
 **Build-from-source fallback**
 When a package is neither in native package manager repositories nor available via AUR, the installer checks for an upstream compilation recipe:

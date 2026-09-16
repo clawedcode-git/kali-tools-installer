@@ -2,7 +2,7 @@
 set -euo pipefail
 
 detect_distro() {
-    local os_release="/etc/os-release"
+    local os_release="${OS_RELEASE_FILE:-/etc/os-release}"
     local id=""
     local id_like=""
     

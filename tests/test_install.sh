@@ -291,6 +291,76 @@ test_case_insensitive_distro() {
     test_log "PASS: case-insensitive --distro ARCH normalized to arch/pacman"
 }
 
+test_mocked_os_release_distros() {
+    test_log "Testing distro detection via mocked os-release files..."
+    local mock_dir="/tmp/mock-os-release"
+    mkdir -p "${mock_dir}"
+    
+    # 1. CachyOS
+    cat << 'EOF' > "${mock_dir}/cachyos"
+NAME="CachyOS"
+ID=cachyos
+ID_LIKE="arch"
+EOF
+    (
+        FORCE_DISTRO="" OS_RELEASE_FILE="${mock_dir}/cachyos" detect_distro >/dev/null 2>&1
+        [[ "${DISTRO}" == "arch" && "${PACKAGE_MANAGER}" == "pacman" ]]
+    ) || { test_log "FAIL: CachyOS mock failed detection"; rm -rf "${mock_dir}"; return 1; }
+
+    # 2. Ubuntu
+    cat << 'EOF' > "${mock_dir}/ubuntu"
+NAME="Ubuntu"
+ID=ubuntu
+ID_LIKE=debian
+EOF
+    (
+        FORCE_DISTRO="" OS_RELEASE_FILE="${mock_dir}/ubuntu" detect_distro >/dev/null 2>&1
+        [[ "${DISTRO}" == "debian" && "${PACKAGE_MANAGER}" == "apt" ]]
+    ) || { test_log "FAIL: Ubuntu mock failed detection"; rm -rf "${mock_dir}"; return 1; }
+
+    # 3. Fedora
+    cat << 'EOF' > "${mock_dir}/fedora"
+NAME="Fedora Linux"
+ID=fedora
+EOF
+    (
+        FORCE_DISTRO="" OS_RELEASE_FILE="${mock_dir}/fedora" detect_distro >/dev/null 2>&1
+        [[ "${DISTRO}" == "fedora" && "${PACKAGE_MANAGER}" == "dnf" ]]
+    ) || { test_log "FAIL: Fedora mock failed detection"; rm -rf "${mock_dir}"; return 1; }
+
+    # 4. Alpine
+    cat << 'EOF' > "${mock_dir}/alpine"
+NAME="Alpine Linux"
+ID=alpine
+EOF
+    (
+        FORCE_DISTRO="" OS_RELEASE_FILE="${mock_dir}/alpine" detect_distro >/dev/null 2>&1
+        [[ "${DISTRO}" == "alpine" && "${PACKAGE_MANAGER}" == "apk" ]]
+    ) || { test_log "FAIL: Alpine mock failed detection"; rm -rf "${mock_dir}"; return 1; }
+
+    # 5. Void
+    cat << 'EOF' > "${mock_dir}/void"
+NAME="void"
+ID=void
+EOF
+    (
+        FORCE_DISTRO="" OS_RELEASE_FILE="${mock_dir}/void" detect_distro >/dev/null 2>&1
+        [[ "${DISTRO}" == "void" && "${PACKAGE_MANAGER}" == "xbps" ]]
+    ) || { test_log "FAIL: Void mock failed detection"; rm -rf "${mock_dir}"; return 1; }
+
+    rm -rf "${mock_dir}"
+    test_log "PASS: Multi-distro detection via mocked os-release verified"
+}
+
+test_blackarch_setup_dry_run() {
+    test_log "Testing BlackArch setup dry-run..."
+    local out
+    out=$(DISTRO_FAMILY="arch" DRY_RUN="true" setup_blackarch 2>&1)
+    echo "${out}" | grep -q "Setting up BlackArch repository" || { test_log "FAIL: BlackArch setup message missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "[DRY RUN]" || { test_log "FAIL: BlackArch dry-run missing dry-run tags: ${out}"; return 1; }
+    test_log "PASS: BlackArch setup dry-run verified"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -320,6 +390,8 @@ run_tests() {
     test_cli_arg_validation || ((failed+=1))
     test_print_summary_set_e || ((failed+=1))
     test_case_insensitive_distro || ((failed+=1))
+    test_mocked_os_release_distros || ((failed+=1))
+    test_blackarch_setup_dry_run || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then

@@ -11,6 +11,7 @@ parse_args() {
     declare -g LIST_INSTALLED
     declare -g SHOW_HELP
     declare -g PRECHECK
+    declare -g ENABLE_BLACKARCH
     
     FORCE_DISTRO=""
     SELECTED_CATEGORIES=()
@@ -21,6 +22,7 @@ parse_args() {
     LIST_INSTALLED=false
     SHOW_HELP=false
     PRECHECK=false
+    ENABLE_BLACKARCH=false
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -85,6 +87,10 @@ parse_args() {
                 PRECHECK=true
                 shift
                 ;;
+            --enable-blackarch)
+                ENABLE_BLACKARCH=true
+                shift
+                ;;
             --help|-h)
                 SHOW_HELP=true
                 shift
@@ -97,7 +103,7 @@ parse_args() {
         esac
     done
     
-    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK
+    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH
 }
 
 print_help() {
@@ -112,6 +118,7 @@ Options:
     --yes, -y               Skip confirmations
     --dry-run               Show packages without installing
     --no-update             Skip package database update
+    --enable-blackarch      Enable BlackArch repository on Arch/CachyOS
     --log-file <path>       Custom log location
     --list-installed        List installed Kali tools
     --precheck              Check package availability in repos (no install)
@@ -122,6 +129,7 @@ Categories: $(get_categories | paste -sd, -)
 Examples:
     sudo $(basename "$0")                          # Interactive
     sudo $(basename "$0") --distro arch --yes      # Non-interactive Arch
+    sudo $(basename "$0") --distro arch --enable-blackarch # With BlackArch repos
     sudo $(basename "$0") --distro slackware --yes # Non-interactive Slackware
     sudo $(basename "$0") --precheck --distro arch # Check package availability
     sudo $(basename "$0") --categories web,vuln --yes
@@ -253,9 +261,57 @@ confirm_installation() {
         return 0
     fi
     
+    if [[ "${DISTRO_FAMILY}" == "arch" && "${ENABLE_BLACKARCH}" != "true" ]]; then
+        if ! grep -q "\[blackarch\]" /etc/pacman.conf 2>/dev/null; then
+            if [[ "${ASSUME_YES}" != "true" ]]; then
+                if prompt_yes_no "Enable BlackArch repository for thousands of additional tools?" "n"; then
+                    ENABLE_BLACKARCH=true
+                fi
+            fi
+        fi
+    fi
+    
     if ! prompt_yes_no "Proceed with installation?"; then
         info "Installation cancelled by user"
         exit 0
+    fi
+}
+
+setup_blackarch() {
+    if [[ "${DISTRO_FAMILY}" != "arch" ]]; then
+        warn "BlackArch repository setup is only supported on Arch-based systems"
+        return 1
+    fi
+    
+    if grep -q "\[blackarch\]" /etc/pacman.conf 2>/dev/null; then
+        info "BlackArch repository is already configured in /etc/pacman.conf"
+        return 0
+    fi
+    
+    info "Setting up BlackArch repository..."
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        info "[DRY RUN] curl -s -O https://blackarch.org/strap.sh"
+        info "[DRY RUN] chmod +x strap.sh && ./strap.sh"
+        return 0
+    fi
+    
+    if [[ ${EUID} -ne 0 ]]; then
+        error "Configuring BlackArch repository requires root privileges (run with sudo)"
+        return 1
+    fi
+    
+    local strap_tmp="/tmp/blackarch-strap-${UID:-0}"
+    mkdir -p "${strap_tmp}"
+    if curl -s -o "${strap_tmp}/strap.sh" https://blackarch.org/strap.sh; then
+        chmod +x "${strap_tmp}/strap.sh"
+        run_cmd "${strap_tmp}/strap.sh"
+        rm -rf "${strap_tmp}"
+        info "BlackArch repository configured successfully"
+        return 0
+    else
+        error "Failed to download BlackArch strap.sh script"
+        rm -rf "${strap_tmp}"
+        return 1
     fi
 }
 
@@ -425,6 +481,10 @@ run_cmd() {
 }
 
 run_installation() {
+    if [[ "${ENABLE_BLACKARCH:-false}" == "true" && "${DISTRO_FAMILY}" == "arch" ]]; then
+        setup_blackarch
+    fi
+    
     update_package_db
     
     info "Starting installation of ${#TOOLS_TO_INSTALL[@]} tools..."
