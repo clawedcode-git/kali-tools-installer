@@ -5,6 +5,7 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 ## Features
 
 - **Cross-distribution support**: Automatically detects your distribution and uses the appropriate package manager
+- **Curated tool presets**: Quick installations using presets like `top10`, `default`, `headless`, `web`, `wireless`, and `passwords`
 - **Extensive Kali toolset**: Installs curated penetration testing and security auditing tools across 12 categories
 - **100% Arch Linux / CachyOS coverage**: Complete official repo and AUR mappings for all 171 tools with native `pacman` and unprivileged `yay`/`paru` helper integration
 - **BlackArch repository integration**: Optional bootstrapping of BlackArch repositories on Arch/CachyOS (`--enable-blackarch`) providing access to thousands of precompiled security packages
@@ -67,6 +68,12 @@ Prompts for:
 ### Non-Interactive Mode (Automation)
 
 ```bash
+# Install Top 10 Kali tools on Arch / CachyOS
+sudo ./install.sh --distro arch --preset top10 --yes
+
+# Install headless pentesting suite on Debian / Ubuntu server
+sudo ./install.sh --distro debian --preset headless --yes
+
 # Install all tools on Arch-based distro
 sudo ./install.sh --distro arch --yes
 
@@ -77,7 +84,7 @@ sudo ./install.sh --distro debian --categories "web,vuln,forensics" --yes
 sudo ./install.sh --distro slackware --categories "password,wireless" --yes
 
 # Dry run (show what would be installed, unprivileged)
-./install.sh --distro fedora --dry-run
+./install.sh --distro fedora --preset top10 --dry-run
 ```
 
 ### Package Availability Precheck & Dry-Run
@@ -85,6 +92,9 @@ sudo ./install.sh --distro slackware --categories "password,wireless" --yes
 Before installing, check what packages are actually available in your distribution's repositories, or preview the complete execution pipeline without making changes (works without root):
 
 ```bash
+# Check preset availability for a distro
+./install.sh --distro arch --preset top10 --precheck
+
 # Check all categories for a distro
 ./install.sh --distro arch --precheck
 
@@ -99,7 +109,7 @@ Before installing, check what packages are actually available in your distributi
 ```
 
 The precheck queries your distribution's package repositories and shows:
-- **Per-category statistics**: Total tools, available count, percentage, missing count
+- **Per-category / per-preset statistics**: Total tools, available count, percentage, missing count
 - **Missing packages**: Lists tools not found in repositories
 - **Buildable from source**: Identifies missing packages that can be compiled (Go, Python, CMake, make, etc.)
 - **Overall summary**: Total availability percentage across all categories
@@ -111,6 +121,7 @@ When combined with `--dry-run`, the installer evaluates availability, plans the 
 | Option | Description |
 |--------|-------------|
 | `--distro <name>` | Force distribution (arch, debian, fedora, slackware, opensuse, gentoo, alpine, void) |
+| `--preset <name>` | Install curated preset (top10, default, headless, web, wireless, passwords) |
 | `--categories <list>` | Comma-separated categories to install |
 | `--tools <list>` | Comma-separated specific tools to install |
 | `--yes`, `-y` | Skip confirmations |
@@ -121,6 +132,19 @@ When combined with `--dry-run`, the installer evaluates availability, plans the 
 | `--log-file <path>` | Custom log location (default: /var/log/kali-tools-install.log, fallback /tmp) |
 | `--list-installed` | List installed Kali tools |
 | `--help`, `-h` | Show help |
+
+## Tool Presets
+
+Curated bundles designed for common use cases:
+
+| Preset | Description | Tool Count | Tools Included |
+|--------|-------------|------------|----------------|
+| `top10` | Essential Kali Top 10 pentesting tools | 10 | `aircrack-ng`, `burpsuite`, `hydra`, `john`, `hashcat`, `metasploit-framework`, `nikto`, `nmap`, `sqlmap`, `wireshark` |
+| `default` | Core Kali default penetration testing suite | 35 | Essential tools across info gathering, web, exploitation, passwords, and sniffing |
+| `headless` | CLI-only suite for cloud VPS, remote servers & containers | 32 | Terminal-based tools without X11/GUI dependencies |
+| `web` | Web application security assessment bundle | 10 | `burpsuite`, `owasp-zap`, `nikto`, `dirb`, `gobuster`, `wfuzz`, `whatweb`, `wpscan`, `joomscan`, `cmsmap` |
+| `wireless` | Wireless network auditing & attack suite | 10 | `aircrack-ng`, `wifite`, `kismet`, `reaver`, `bully`, `pixiewps`, `wash`, `fern-wifi-cracker`, `mdk3`, `mdk4` |
+| `passwords` | Password cracking, brute-forcing & dictionary generation | 8 | `john`, `hashcat`, `hydra`, `medusa`, `ncrack`, `crunch`, `cewl`, `cupp` |
 
 ## Tool Categories
 

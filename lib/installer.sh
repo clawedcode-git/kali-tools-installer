@@ -12,10 +12,12 @@ parse_args() {
     declare -g SHOW_HELP
     declare -g PRECHECK
     declare -g ENABLE_BLACKARCH
+    declare -g SELECTED_PRESET
     
     FORCE_DISTRO=""
     SELECTED_CATEGORIES=()
     SELECTED_TOOLS=()
+    SELECTED_PRESET=""
     DRY_RUN=false
     ASSUME_YES=false
     SKIP_UPDATE=false
@@ -52,6 +54,15 @@ parse_args() {
                     exit 1
                 fi
                 IFS=',' read -ra SELECTED_TOOLS <<< "$2"
+                shift 2
+                ;;
+            --preset)
+                if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+                    error "Option $1 requires an argument"
+                    print_help
+                    exit 1
+                fi
+                SELECTED_PRESET="${2,,}"
                 shift 2
                 ;;
             --yes|-y)
@@ -103,7 +114,7 @@ parse_args() {
         esac
     done
     
-    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH
+    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET
 }
 
 print_help() {
@@ -113,6 +124,7 @@ Usage: $(basename "$0") [OPTIONS]
 
 Options:
     --distro <name>         Force distribution (arch, debian, fedora, slackware, opensuse)
+    --preset <name>         Install curated preset (top10, default, headless, web, wireless, passwords)
     --categories <list>     Comma-separated categories to install
     --tools <list>          Comma-separated specific tools to install
     --yes, -y               Skip confirmations
@@ -124,10 +136,13 @@ Options:
     --precheck              Check package availability in repos (no install)
     --help, -h              Show this help
 
+Presets: $(get_presets | paste -sd, -)
 Categories: $(get_categories | paste -sd, -)
 
 Examples:
     sudo $(basename "$0")                          # Interactive
+    sudo $(basename "$0") --preset top10 --yes     # Install Top 10 Kali tools
+    sudo $(basename "$0") --preset headless --yes  # Install headless CLI tools
     sudo $(basename "$0") --distro arch --yes      # Non-interactive Arch
     sudo $(basename "$0") --distro arch --enable-blackarch # With BlackArch repos
     sudo $(basename "$0") --distro slackware --yes # Non-interactive Slackware
@@ -138,6 +153,17 @@ EOF
 }
 
 select_installation_scope() {
+    if [[ -n "${SELECTED_PRESET:-}" ]]; then
+        if ! validate_preset "${SELECTED_PRESET}"; then
+            error "Unknown preset: ${SELECTED_PRESET}"
+            error "Available presets: $(get_presets | paste -sd, -)"
+            exit 1
+        fi
+        read -ra TOOLS_TO_INSTALL <<< "$(get_tools_in_preset "${SELECTED_PRESET}")"
+        info "Selected preset '${SELECTED_PRESET}' (${#TOOLS_TO_INSTALL[@]} tools): ${TOOLS_TO_INSTALL[*]}"
+        return
+    fi
+    
     if [[ ${#SELECTED_TOOLS[@]} -gt 0 ]]; then
         TOOLS_TO_INSTALL=("${SELECTED_TOOLS[@]}")
         info "Selected tools: ${TOOLS_TO_INSTALL[*]}"
@@ -161,17 +187,21 @@ select_installation_scope() {
     print_banner
     echo
     info "Select installation scope:"
-    echo "  1) All Kali tools (~600+ packages)"
-    echo "  2) Select categories"
-    echo "  3) Select specific tools"
+    echo "  1) All Kali tools (~171 packages)"
+    echo "  2) Tool presets (top10, default, headless, web, wireless, passwords)"
+    echo "  3) Select categories"
+    echo "  4) Select specific tools"
     echo
     
     local choice
-    choice=$(prompt_select "Choose option:" "All tools" "Select categories" "Select tools")
+    choice=$(prompt_select "Choose option:" "All tools" "Tool presets" "Select categories" "Select tools")
     
     case "${choice}" in
         "All tools")
             mapfile -t TOOLS_TO_INSTALL < <(list_all_tools)
+            ;;
+        "Tool presets")
+            select_preset_interactive
             ;;
         "Select categories")
             select_categories_interactive
@@ -180,6 +210,26 @@ select_installation_scope() {
             select_tools_interactive
             ;;
     esac
+}
+
+select_preset_interactive() {
+    local presets=()
+    mapfile -t presets < <(get_presets)
+    echo "Available presets:"
+    for i in "${!presets[@]}"; do
+        local p="${presets[i]}"
+        local desc
+        desc=$(get_preset_description "${p}")
+        local -a p_tools=()
+        read -ra p_tools <<< "$(get_tools_in_preset "${p}")"
+        echo "  $((i+1))) ${p} (${#p_tools[@]} tools) - ${desc}"
+    done
+    echo
+    
+    local choice
+    choice=$(prompt_select "Choose preset:" "${presets[@]}")
+    read -ra TOOLS_TO_INSTALL <<< "$(get_tools_in_preset "${choice}")"
+    info "Selected preset '${choice}' (${#TOOLS_TO_INSTALL[@]} tools)"
 }
 
 select_categories_interactive() {
@@ -859,6 +909,58 @@ run_precheck() {
     echo
     
     update_package_db
+    
+    if [[ -n "${SELECTED_PRESET:-}" ]]; then
+        if ! validate_preset "${SELECTED_PRESET}"; then
+            error "Unknown preset: ${SELECTED_PRESET}"
+            error "Available presets: $(get_presets | paste -sd, -)"
+            exit 1
+        fi
+        local -a preset_tools=()
+        read -ra preset_tools <<< "$(get_tools_in_preset "${SELECTED_PRESET}")"
+        info "Checking preset '${SELECTED_PRESET}' (${#preset_tools[@]} tools)..."
+        local p_available=0
+        local p_missing=0
+        local p_buildable=0
+        local missing_tools=()
+        for tool in "${preset_tools[@]}"; do
+            local pkg_name
+            pkg_name=$(get_distro_pkg_name "${tool}")
+            if [[ -z "${pkg_name}" ]]; then
+                p_missing=$((p_missing + 1))
+                missing_tools+=("${tool} (no package mapping)")
+                continue
+            fi
+            if check_package_available "${pkg_name}"; then
+                p_available=$((p_available + 1))
+            else
+                p_missing=$((p_missing + 1))
+                local build_res
+                build_res=$(check_build_from_source "${tool}" "${pkg_name}" || true)
+                if [[ "${build_res}" == BUILDABLE:* ]]; then
+                    p_buildable=$((p_buildable + 1))
+                    missing_tools+=("${tool} -> ${pkg_name} [BUILDABLE]")
+                else
+                    missing_tools+=("${tool} -> ${pkg_name}")
+                fi
+            fi
+        done
+        local p_pct=0
+        [[ ${#preset_tools[@]} -gt 0 ]] && p_pct=$((p_available * 100 / ${#preset_tools[@]}))
+        echo
+        info "=== Precheck Summary (Preset: ${SELECTED_PRESET}) ==="
+        info "Total tools: ${#preset_tools[@]}"
+        success "Available in repos: ${p_available} (${p_pct}%)"
+        [[ ${p_missing} -gt 0 ]] && error "Missing from repos: ${p_missing}"
+        [[ ${p_buildable} -gt 0 ]] && warn "Potentially buildable from source: ${p_buildable}"
+        if [[ ${#missing_tools[@]} -gt 0 ]]; then
+            info "Missing packages:"
+            for mt in "${missing_tools[@]}"; do
+                info "  - ${mt}"
+            done
+        fi
+        return 0
+    fi
     
     local total_tools=0
     local total_available=0

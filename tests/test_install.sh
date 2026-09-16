@@ -361,6 +361,53 @@ test_blackarch_setup_dry_run() {
     test_log "PASS: BlackArch setup dry-run verified"
 }
 
+test_presets_definition() {
+    test_log "Testing tool presets definition and validation..."
+    local presets
+    presets=$(get_presets)
+    for p in top10 default headless web wireless passwords; do
+        echo "${presets}" | grep -q "^${p}$" || { test_log "FAIL: preset '${p}' missing from get_presets"; return 1; }
+        validate_preset "${p}" || { test_log "FAIL: validate_preset failed for '${p}'"; return 1; }
+        local -a p_tools=()
+        read -ra p_tools <<< "$(get_tools_in_preset "${p}")"
+        [[ ${#p_tools[@]} -gt 0 ]] || { test_log "FAIL: preset '${p}' has 0 tools"; return 1; }
+        for t in "${p_tools[@]}"; do
+            validate_tool "${t}" || { test_log "FAIL: preset '${p}' contains invalid tool '${t}'"; return 1; }
+        done
+    done
+    test_log "PASS: All tool presets defined with valid tools"
+}
+
+test_preset_cli_dry_run() {
+    test_log "Testing --preset CLI flag with dry-run..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --preset top10 --dry-run --yes 2>&1)
+    echo "${out}" | grep -q "Selected preset 'top10' (10 tools)" || { test_log "FAIL: preset selection message missing in dry-run: ${out}"; return 1; }
+    echo "${out}" | grep -q "Tools to install (10):" || { test_log "FAIL: expected 10 tools to install: ${out}"; return 1; }
+    echo "${out}" | grep -q "nmap -> nmap" || { test_log "FAIL: nmap missing in top10 dry-run: ${out}"; return 1; }
+    echo "${out}" | grep -q "sqlmap -> sqlmap" || { test_log "FAIL: sqlmap missing in top10 dry-run: ${out}"; return 1; }
+    test_log "PASS: --preset top10 executed cleanly in dry-run mode"
+}
+
+test_preset_precheck() {
+    test_log "Testing --preset CLI flag with precheck..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --preset top10 --precheck 2>&1)
+    echo "${out}" | grep -q "Checking preset 'top10' (10 tools)" || { test_log "FAIL: preset precheck header missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "Precheck Summary (Preset: top10)" || { test_log "FAIL: preset precheck summary missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "Total tools: 10" || { test_log "FAIL: expected 10 tools in precheck: ${out}"; return 1; }
+    test_log "PASS: --preset top10 precheck verified"
+}
+
+test_preset_validation() {
+    test_log "Testing invalid preset error handling..."
+    local out rc=0
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --preset invalid_xyz --dry-run 2>&1) || rc=$?
+    [[ ${rc} -ne 0 ]] || { test_log "FAIL: invalid preset should exit non-zero"; return 1; }
+    echo "${out}" | grep -q "Unknown preset: invalid_xyz" || { test_log "FAIL: expected 'Unknown preset' error: ${out}"; return 1; }
+    test_log "PASS: Invalid preset rejected cleanly"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -392,6 +439,10 @@ run_tests() {
     test_case_insensitive_distro || ((failed+=1))
     test_mocked_os_release_distros || ((failed+=1))
     test_blackarch_setup_dry_run || ((failed+=1))
+    test_presets_definition || ((failed+=1))
+    test_preset_cli_dry_run || ((failed+=1))
+    test_preset_precheck || ((failed+=1))
+    test_preset_validation || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then

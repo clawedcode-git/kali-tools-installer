@@ -66,3 +66,47 @@ validate_category() {
     local category="$1"
     [[ -n "${CATEGORY_TOOLS[${category}]:-}" ]]
 }
+
+declare -A PRESET_TOOLS
+declare -A PRESET_DESCRIPTIONS
+
+init_presets() {
+    PRESET_DESCRIPTIONS["top10"]="Top 10 essential Kali security tools"
+    PRESET_TOOLS["top10"]="aircrack-ng burpsuite hydra john hashcat metasploit-framework nikto nmap sqlmap wireshark"
+
+    PRESET_DESCRIPTIONS["default"]="Core Kali default suite (35 essential tools)"
+    PRESET_TOOLS["default"]="nmap masscan dnsrecon recon-ng theharvester nikto sqlmap burpsuite owasp-zap gobuster dirb wfuzz whatweb wpscan hydra john hashcat medusa ncrack crunch aircrack-ng wifite kismet reaver metasploit-framework exploitdb searchsploit powersploit setoolkit wireshark tcpdump ettercap bettercap socat proxychains"
+
+    PRESET_DESCRIPTIONS["headless"]="CLI-only security tools for servers, VPS, and containers"
+    PRESET_TOOLS["headless"]="nmap masscan dnsrecon recon-ng theharvester nikto sqlmap gobuster dirb wfuzz whatweb wpscan hydra john hashcat medusa ncrack crunch cewl aircrack-ng wifite kismet reaver metasploit-framework exploitdb searchsploit tcpdump ettercap bettercap socat proxychains stunnel"
+
+    PRESET_DESCRIPTIONS["web"]="Web application penetration testing suite"
+    PRESET_TOOLS["web"]="burpsuite owasp-zap nikto dirb gobuster wfuzz whatweb wpscan joomscan cmsmap"
+
+    PRESET_DESCRIPTIONS["wireless"]="Wireless network auditing and attack tools"
+    PRESET_TOOLS["wireless"]="aircrack-ng wifite kismet reaver bully pixiewps wash fern-wifi-cracker mdk3 mdk4"
+
+    PRESET_DESCRIPTIONS["passwords"]="Password cracking, brute-forcing, and wordlists"
+    PRESET_TOOLS["passwords"]="john hashcat hydra medusa ncrack crunch cewl cupp"
+}
+
+init_presets
+
+get_presets() {
+    printf '%s\n' "${!PRESET_TOOLS[@]}" | sort
+}
+
+get_preset_description() {
+    local preset="$1"
+    echo "${PRESET_DESCRIPTIONS[${preset}]:-}"
+}
+
+get_tools_in_preset() {
+    local preset="$1"
+    echo "${PRESET_TOOLS[${preset}]:-}"
+}
+
+validate_preset() {
+    local preset="$1"
+    [[ -n "${PRESET_TOOLS[${preset}]:-}" ]]
+}
