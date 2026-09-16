@@ -275,11 +275,10 @@ check_root() {
 }
 
 print_banner() {
-    local os_badge="${DISTRO:-Detecting...}"
-    if [[ -n "${DISTRO_FAMILY:-}" && "${DISTRO}" != "${DISTRO_FAMILY}" ]]; then
-        os_badge="${DISTRO} (${DISTRO_FAMILY})"
-    elif [[ -n "${DISTRO:-}" ]]; then
-        os_badge="${DISTRO}"
+    local os_name="${DISTRO_NAME:-${DISTRO:-Detecting...}}"
+    local os_badge="${os_name}"
+    if [[ -n "${DISTRO_FAMILY:-}" && "${os_name}" != "${DISTRO_FAMILY}" ]]; then
+        os_badge="${os_name} (${DISTRO_FAMILY})"
     fi
     local pkg_badge="${PACKAGE_MANAGER:-auto}"
     local ba_badge="Disabled"

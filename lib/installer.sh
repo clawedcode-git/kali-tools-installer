@@ -640,9 +640,17 @@ is_pkg_installed() {
         dnf) rpm -q "${pkg}" &>/dev/null ;;
         zypper) rpm -q "${pkg}" &>/dev/null ;;
         apk) apk info -e "${pkg}" &>/dev/null ;;
-        slackpkg) slackpkg search installed "${pkg}" 2>/dev/null | grep -q "^${pkg}" ;;
-        emerge) qlist -I -e "${pkg}" &>/dev/null || equery which "${pkg}" &>/dev/null ;;
-        xbps) xbps-query -s "${pkg}" &>/dev/null ;;
+        slackpkg)
+            if [[ -d "/var/log/packages" ]]; then
+                ls /var/log/packages/"${pkg}"-[0-9]* &>/dev/null
+            else
+                slackpkg search installed "${pkg}" 2>/dev/null | grep -q "^${pkg}"
+            fi
+            ;;
+        emerge)
+            qlist -I -e "${pkg}" &>/dev/null || equery which "${pkg}" &>/dev/null || ls -d /var/db/pkg/*/"${pkg}"-[0-9]* &>/dev/null 2>&1
+            ;;
+        xbps) xbps-query "${pkg}" &>/dev/null || xbps-query -s "${pkg}" &>/dev/null ;;
         *) return 1 ;;
     esac
 }
@@ -1021,7 +1029,15 @@ check_package_available() {
     
     case "${PACKAGE_MANAGER}" in
         pacman)
-            pacman -Si "${pkg_name}" &>/dev/null && available=true
+            if pacman -Si "${pkg_name}" &>/dev/null; then
+                available=true
+            else
+                local aur_helper
+                aur_helper=$(get_aur_helper || true)
+                if [[ -n "${aur_helper}" ]] && "${aur_helper}" -Si "${pkg_name}" &>/dev/null; then
+                    available=true
+                fi
+            fi
             ;;
         apt)
             apt-cache show "${pkg_name}" &>/dev/null && available=true
@@ -1303,12 +1319,20 @@ build_from_source() {
             fi
             ;;
         pip)
+            local -a pip_cmd=()
             if command -v pip3 &>/dev/null; then
-                pip3 install --prefix=/usr/local "${tool}" 2>&1 | tee -a "${LOG_FILE}" && success=true
+                pip_cmd=(pip3)
             elif command -v pip &>/dev/null; then
-                pip install --prefix=/usr/local "${tool}" 2>&1 | tee -a "${LOG_FILE}" && success=true
+                pip_cmd=(pip)
             else
                 warn "pip/pip3 is required to install ${tool} but not installed"
+            fi
+            if [[ ${#pip_cmd[@]} -gt 0 ]]; then
+                local -a pip_args=("install" "--prefix=/usr/local")
+                if "${pip_cmd[@]}" install --help 2>&1 | grep -q -- '--break-system-packages'; then
+                    pip_args+=("--break-system-packages")
+                fi
+                "${pip_cmd[@]}" "${pip_args[@]}" "${tool}" 2>&1 | tee -a "${LOG_FILE}" && success=true
             fi
             ;;
         gem)
@@ -1323,9 +1347,9 @@ build_from_source() {
                 if git clone --depth 1 "${source_url}.git" "${build_dir}/src" 2>&1 | tee -a "${LOG_FILE}" || git clone --depth 1 "${source_url}" "${build_dir}/src" 2>&1 | tee -a "${LOG_FILE}"; then
                     pushd "${build_dir}/src" >/dev/null
                     if [[ -f "Makefile" ]]; then
-                        make && make install 2>&1 | tee -a "${LOG_FILE}" && success=true
+                        { make && make install; } 2>&1 | tee -a "${LOG_FILE}" && success=true
                     elif [[ -f "CMakeLists.txt" ]] && command -v cmake &>/dev/null; then
-                        cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local && cmake --build build && cmake --install build 2>&1 | tee -a "${LOG_FILE}" && success=true
+                        { cmake -B build -DCMAKE_INSTALL_PREFIX=/usr/local && cmake --build build && cmake --install build; } 2>&1 | tee -a "${LOG_FILE}" && success=true
                     fi
                     popd >/dev/null
                 fi

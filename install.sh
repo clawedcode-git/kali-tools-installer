@@ -11,6 +11,13 @@ source "${PROJECT_ROOT}/lib/packages.sh"
 source "${PROJECT_ROOT}/lib/installer.sh"
 source "${PROJECT_ROOT}/lib/menu.sh"
 
+cleanup_terminal() {
+    if [[ -t 0 ]]; then
+        stty echo 2>/dev/null || true
+    fi
+}
+trap cleanup_terminal EXIT INT TERM
+
 main() {
     load_default_configs "$@"
     parse_args "$@"
@@ -36,8 +43,9 @@ main() {
         fi
     fi
     
+    select_installation_scope
+    
     if [[ "${UNINSTALL:-false}" == "true" ]]; then
-        select_installation_scope
         confirm_uninstallation
         if [[ "${DRY_RUN}" != "true" ]]; then
             check_root
@@ -47,7 +55,6 @@ main() {
         exit 0
     fi
     
-    select_installation_scope
     confirm_installation
     if [[ "${DRY_RUN}" != "true" ]]; then
         check_root

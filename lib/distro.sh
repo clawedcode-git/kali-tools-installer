@@ -15,6 +15,7 @@ detect_distro() {
         id="${id,,}"
         id_like="${ID_LIKE:-}"
         id_like="${id_like,,}"
+        DISTRO_NAME="${id}"
         debug "Detected ID: ${id}, ID_LIKE: ${id_like}"
     else
         error "Cannot detect distribution: ${os_release} not found"

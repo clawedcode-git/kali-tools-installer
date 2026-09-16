@@ -44,15 +44,17 @@ bbs_main_menu() {
                 SELECTED_PRESET=""
                 SELECTED_CATEGORIES=()
                 SELECTED_TOOLS=()
-                read -ra TOOLS_TO_INSTALL <<< "$(list_all_tools)"
+                mapfile -t TOOLS_TO_INSTALL < <(list_all_tools)
                 info "Selected all tools (${#TOOLS_TO_INSTALL[@]} tools)"
                 return 0
                 ;;
             5)
                 echo
                 info "Running package availability precheck across all categories..."
+                local saved_precheck="${PRECHECK:-false}"
                 PRECHECK=true
                 run_precheck
+                PRECHECK="${saved_precheck}"
                 echo
                 read -rp "  Press [Enter] to return to menu..." _
                 ;;
@@ -162,8 +164,8 @@ bbs_category_menu() {
             a)
                 SELECTED_PRESET=""
                 SELECTED_TOOLS=()
-                read -ra SELECTED_CATEGORIES <<< "$(get_categories)"
-                read -ra TOOLS_TO_INSTALL <<< "$(list_all_tools)"
+                mapfile -t SELECTED_CATEGORIES < <(get_categories)
+                mapfile -t TOOLS_TO_INSTALL < <(list_all_tools)
                 info "Selected all categories (${#TOOLS_TO_INSTALL[@]} tools)"
                 return 0
                 ;;
@@ -343,7 +345,11 @@ bbs_confirm_dialog() {
     echo
     bbs_box_header "${action^^} CONFIRMATION"
     echo
-    echo -e "  Target Distribution : ${CYAN}${DISTRO:-unknown} (${PACKAGE_MANAGER:-pacman})${NC}"
+    local os_display="${DISTRO_NAME:-${DISTRO:-unknown}}"
+    if [[ -n "${DISTRO_FAMILY:-}" && "${os_display}" != "${DISTRO_FAMILY}" ]]; then
+        os_display="${os_display} (${DISTRO_FAMILY})"
+    fi
+    echo -e "  Target Distribution : ${CYAN}${os_display}${NC} (${PACKAGE_MANAGER:-pacman})"
     echo -e "  Target Scope        : ${CYAN}${target_scope}${NC}"
     echo -e "  Total Packages      : ${GREEN}${#TOOLS_TO_INSTALL[@]} packages${NC}"
     echo -e "  Dependencies Mode   : ${YELLOW}${INSTALL_DEPS}${NC}"

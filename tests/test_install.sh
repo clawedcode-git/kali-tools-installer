@@ -711,6 +711,41 @@ test_no_tui_flag() {
     test_log "PASS: --no-tui and --plain flags verified"
 }
 
+test_menu_multiline_tools_selection() {
+    test_log "Testing BBS menu all tools multiline loading..."
+    local out
+    out=$(bash -c "source '${PROJECT_ROOT}/lib/utils.sh'; source '${PROJECT_ROOT}/lib/distro.sh'; source '${PROJECT_ROOT}/lib/packages.sh'; source '${PROJECT_ROOT}/lib/installer.sh'; source '${PROJECT_ROOT}/lib/menu.sh'; load_tool_list; echo '4' | bbs_main_menu" 2>&1)
+    echo "${out}" | grep -q "Selected all tools (171 tools)" || { test_log "FAIL: expected 171 tools selected in menu: ${out}"; return 1; }
+    test_log "PASS: BBS menu all tools multiline loading verified"
+}
+
+test_menu_all_categories_multiline() {
+    test_log "Testing BBS menu all categories multiline loading..."
+    local out
+    out=$(bash -c "source '${PROJECT_ROOT}/lib/utils.sh'; source '${PROJECT_ROOT}/lib/distro.sh'; source '${PROJECT_ROOT}/lib/packages.sh'; source '${PROJECT_ROOT}/lib/installer.sh'; source '${PROJECT_ROOT}/lib/menu.sh'; load_tool_list; echo 'a' | bbs_category_menu" 2>&1)
+    echo "${out}" | grep -q "Selected all categories (171 tools)" || { test_log "FAIL: expected 171 tools in all categories: ${out}"; return 1; }
+    test_log "PASS: BBS menu all categories multiline loading verified"
+}
+
+test_uninstallation_routing_order() {
+    test_log "Testing uninstallation execution routing..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --preset top10 --uninstall --dry-run --yes 2>&1)
+    echo "${out}" | grep -q "Starting uninstallation of 10 tools" || { test_log "FAIL: uninstallation start missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "Dry run complete. No packages or files were removed." || { test_log "FAIL: uninstallation routing failed: ${out}"; return 1; }
+    echo "${out}" | grep -q "\[DRY RUN\] pacman -R" || { test_log "FAIL: pacman -R dry run missing: ${out}"; return 1; }
+    test_log "PASS: Uninstallation execution routing verified"
+}
+
+test_pip_break_system_packages_flag() {
+    test_log "Testing pip build-from-source flag safety..."
+    local out
+    out=$(bash -c "source '${PROJECT_ROOT}/lib/utils.sh'; source '${PROJECT_ROOT}/lib/packages.sh'; source '${PROJECT_ROOT}/lib/installer.sh'; DRY_RUN=true; build_from_source sqlmap" 2>&1)
+    echo "${out}" | grep -q "Building sqlmap from source using pip" || { test_log "FAIL: sqlmap build start missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "\[DRY RUN\] Build sqlmap" || { test_log "FAIL: dry run output missing: ${out}"; return 1; }
+    test_log "PASS: pip build-from-source flag safety verified"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -763,6 +798,10 @@ run_tests() {
     test_bbs_banner_rendering || ((failed+=1))
     test_bbs_menu_non_interactive_fallback || ((failed+=1))
     test_no_tui_flag || ((failed+=1))
+    test_menu_multiline_tools_selection || ((failed+=1))
+    test_menu_all_categories_multiline || ((failed+=1))
+    test_uninstallation_routing_order || ((failed+=1))
+    test_pip_break_system_packages_flag || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then
