@@ -74,36 +74,6 @@ Running without arguments launches the **BBS Retro Style Menu System** with an A
   <img src="assets/screenshot.svg" alt="Kali Tools Installer BBS Menu &amp; Concept A Banner" width="800"/>
 </p>
 
-```text
-              _  __     _ _   _____           _       
-             | |/ /__ _| (_) |_   _|__   ___ | |___   
-             | ' // _` | | |   | |/ _ \ / _ \| / __|  
-             | . \ (_| | | |   | | (_) | (_) | \__ \  
-             |_|\_\__,_|_|_|   |_|\___/ \___/|_|___/  
-                 [ OFFENSIVE SECURITY TOOLSET ]       
-┌───────────────────────────────────────────────────────────────┐
-│ OS: cachyos (arch) │ PkgMgr: pacman     │ BlackArch: Enabled  │
-│ Tools: 171 Total   │ Presets: 6 Curated │ Deps: Auto          │
-└───────────────────────────────────────────────────────────────┘
-
-╔═══════════════════════════════════════════════════════════════╗
-║                      MAIN SELECTION MENU                      ║
-╚═══════════════════════════════════════════════════════════════╝
-
-  [1]  ⚡ Quick Presets (top10, default, headless, web...)
-  [2]  📦 Category Explorer (info, vuln, web, password...)
-  [3]  🔍 Select Specific Tools (~171 Available)
-  [4]  🚀 Install All 171 Kali Tools
-  [5]  🔎 Repository Availability Precheck
-  [6]  🗑️  Tool Uninstallation & Cleanup Engine
-  [7]  📋 View Currently Installed Tools
-  [8]  ⚙️  Toggle Options (Dry-Run: false, Deps: true)
-  [Q]  🚪 Exit Installer
-
-─────────────────────────────────────────────────────────────────
-  Select an option [1-8, Q]: 
-```
-
 - **Instant Keypress Navigation**: Press single hotkeys (`1`-`8`, `Q`) to navigate menus instantly without needing to press Enter.
 - **Dedicated Submenus**: Browse curated tool presets with tool counts, explore categories, select specific tools, or test repository availability.
 - **Non-Interactive & Plain Modes**: The menu system automatically degrades to standard streams when redirected, in CI/CD, when passing `--yes`, or via `--no-tui` / `--plain`.
