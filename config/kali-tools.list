@@ -1,10 +1,10 @@
 # Kali Tools Master List
-# Format: tool_name|category|description|debian_pkg|arch_pkg|fedora_pkg|slackware_pkg|opensuse_pkg|gentoo_pkg|alpine_pkg|void_pkg
+# Format: tool_name|category|description|debian_pkg|arch_pkg|fedora_pkg|slackware_pkg|opensuse_pkg|gentoo_pkg|alpine_pkg|void_pkg|deps
 # Empty package name means not available in that distro's default repos
 # For Slackware: packages marked with (SBo) are available via SlackBuilds.org (use sbopkg)
 
 # Information Gathering
-nmap|info|Network exploration and security auditing|nmap|nmap|nmap|nmap|nmap|net-analyzer/nmap|nmap|nmap
+nmap|info|Network exploration and security auditing|nmap|nmap|nmap|nmap|nmap|net-analyzer/nmap|nmap|nmap|python3-pip,curl
 masscan|info|Fast port scanner|masscan|masscan|masscan|masscan|masscan||||
 recon-ng|info|Web reconnaissance framework|recon-ng|recon-ng|recon-ng|recon-ng|recon-ng||||
 dnsrecon|info|DNS enumeration script|dnsrecon|dnsrecon|dnsrecon|dnsrecon|dnsrecon||||

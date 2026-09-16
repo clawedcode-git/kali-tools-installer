@@ -8,9 +8,12 @@ readonly BLUE='\033[0;34m'
 readonly CYAN='\033[0;36m'
 readonly NC='\033[0m'
 
-# LOG_FILE will be set by parse_args or defaults in init_logging
+if [[ -z "${PROJECT_ROOT:-}" ]]; then
+    PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+fi
 readonly KALI_TOOLS_LIST="${PROJECT_ROOT}/config/kali-tools.list"
 
+LOG_FILE="${LOG_FILE:-/var/log/kali-tools-install.log}"
 DISTRO=""
 DISTRO_FAMILY=""
 PACKAGE_MANAGER=""
@@ -29,7 +32,9 @@ log() {
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     local output="${timestamp} [${level}] ${msg}"
-    echo -e "${output}" >> "${LOG_FILE}"
+    if [[ -n "${LOG_FILE:-}" ]] && { [[ -w "${LOG_FILE}" ]] || touch "${LOG_FILE}" 2>/dev/null; }; then
+        echo -e "${output}" >> "${LOG_FILE}" 2>/dev/null || true
+    fi
     echo -e "${output}"
 }
 
@@ -50,7 +55,12 @@ prompt_yes_no() {
     if [[ "${ASSUME_YES}" == "true" ]]; then
         return 0
     fi
-    read -rp "${prompt} [y/N]: " reply
+    local prompt_suffix="[y/N]"
+    if [[ "${default,,}" =~ ^y ]]; then
+        prompt_suffix="[Y/n]"
+    fi
+    read -rp "${prompt} ${prompt_suffix}: " reply
+    reply="${reply:-$default}"
     [[ "${reply,,}" =~ ^y ]]
 }
 
@@ -72,8 +82,12 @@ prompt_select() {
 
 init_logging() {
     LOG_FILE="${LOG_FILE:-/var/log/kali-tools-install.log}"
-    mkdir -p "$(dirname "${LOG_FILE}")"
-    touch "${LOG_FILE}"
+    if ! mkdir -p "$(dirname "${LOG_FILE}")" 2>/dev/null || ! touch "${LOG_FILE}" 2>/dev/null; then
+        local fallback_log="/tmp/kali-tools-install-${UID:-user}.log"
+        warn "Cannot write to ${LOG_FILE}, falling back to ${fallback_log}"
+        LOG_FILE="${fallback_log}"
+        touch "${LOG_FILE}" 2>/dev/null || true
+    fi
     info "=== Kali Tools Installer Started ==="
     info "Log file: ${LOG_FILE}"
 }

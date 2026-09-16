@@ -10,6 +10,7 @@ parse_args() {
     declare -g SKIP_UPDATE
     declare -g LIST_INSTALLED
     declare -g SHOW_HELP
+    declare -g PRECHECK
     
     FORCE_DISTRO=""
     SELECTED_CATEGORIES=()
@@ -238,6 +239,11 @@ confirm_installation() {
 update_package_db() {
     if [[ "${SKIP_UPDATE}" == "true" ]]; then
         info "Skipping package database update (--no-update)"
+        return
+    fi
+    
+    if [[ ${EUID} -ne 0 ]]; then
+        warn "Running unprivileged; skipping package database update"
         return
     fi
     
@@ -594,7 +600,7 @@ run_precheck() {
                 
                 # Check if buildable from source
                 local build_result
-                build_result=$(check_build_from_source "${tool}" "${pkg_name}")
+                build_result=$(check_build_from_source "${tool}" "${pkg_name}" || true)
                 if [[ "${build_result}" == BUILDABLE:* ]]; then
                     cat_buildable=$((cat_buildable + 1))
                     total_buildable=$((total_buildable + 1))

@@ -6,20 +6,18 @@ detect_distro() {
     local id=""
     local id_like=""
     
-    if [[ ! -f "${os_release}" ]]; then
-        error "Cannot detect distribution: ${os_release} not found"
-        exit 1
-    fi
-    
-    source "${os_release}"
-    id="${ID:-}"
-    id_like="${ID_LIKE:-}"
-    
-    debug "Detected ID: ${id}, ID_LIKE: ${id_like}"
-    
     if [[ -n "${FORCE_DISTRO:-}" ]]; then
         id="${FORCE_DISTRO}"
         warn "Forcing distribution: ${id}"
+    elif [[ -f "${os_release}" ]]; then
+        source "${os_release}"
+        id="${ID:-}"
+        id_like="${ID_LIKE:-}"
+        debug "Detected ID: ${id}, ID_LIKE: ${id_like}"
+    else
+        error "Cannot detect distribution: ${os_release} not found"
+        error "Use --distro to force a supported distribution"
+        exit 1
     fi
     
     case "${id}" in

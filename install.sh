@@ -19,7 +19,6 @@ main() {
     fi
     
     init_logging
-    check_root
     detect_distro
     load_tool_list
     
@@ -35,6 +34,7 @@ main() {
     
     select_installation_scope
     confirm_installation
+    check_root
     run_installation
     print_summary
 }

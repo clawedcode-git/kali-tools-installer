@@ -5,7 +5,7 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 ## Features
 
 - **Cross-distribution support**: Automatically detects your distribution and uses the appropriate package manager
-- **Complete Kali toolset**: Installs all 600+ tools from Kali Linux repositories
+- **Extensive Kali toolset**: Installs curated penetration testing and security auditing tools across 12 categories
 - **Interactive & non-interactive modes**: Run manually or automate in CI/CD
 - **Modular design**: Easy to extend for new distributions
 - **Package availability precheck**: Query repositories before installing to see what's available
@@ -23,7 +23,7 @@ sudo ./install.sh
 
 ### Requirements
 
-- Root/sudo access
+- Root/sudo access (for package installation; precheck, dry-run, and tool listing can run unprivileged)
 - Bash 4.0+
 - Internet connection
 - Supported Linux distribution
@@ -70,26 +70,26 @@ sudo ./install.sh --distro debian --categories "web,vuln,forensics" --yes
 # Install on Slackware
 sudo ./install.sh --distro slackware --categories "password,wireless" --yes
 
-# Dry run (show what would be installed)
-sudo ./install.sh --distro fedora --dry-run
+# Dry run (show what would be installed, unprivileged)
+./install.sh --distro fedora --dry-run
 ```
 
 ### Package Availability Precheck
 
-Before installing, check what packages are actually available in your distribution's repositories:
+Before installing, check what packages are actually available in your distribution's repositories (works without root):
 
 ```bash
 # Check all categories for a distro
-sudo ./install.sh --distro arch --precheck
+./install.sh --distro arch --precheck
 
 # Check specific categories
-sudo ./install.sh --distro arch --categories "web,password" --precheck
+./install.sh --distro arch --categories "web,password" --precheck
 
 # Check for a different distro (e.g., openSUSE)
-sudo ./install.sh --distro opensuse --precheck
+./install.sh --distro opensuse --precheck
 
-# Combined with dry-run to see installation plan
-sudo ./install.sh --distro fedora --precheck --dry-run
+# Combined with categories to inspect availability
+./install.sh --distro fedora --categories "web,vuln" --precheck
 ```
 
 The precheck queries your distribution's package repositories and shows:
@@ -102,13 +102,13 @@ The precheck queries your distribution's package repositories and shows:
 
 | Option | Description |
 |--------|-------------|
-| `--distro <name>` | Force distribution (arch, debian, fedora, slackware, opensuse) |
+| `--distro <name>` | Force distribution (arch, debian, fedora, slackware, opensuse, gentoo, alpine, void) |
 | `--categories <list>` | Comma-separated categories to install |
 | `--tools <list>` | Comma-separated specific tools to install |
 | `--yes`, `-y` | Skip confirmations |
 | `--dry-run` | Show packages without installing |
 | `--no-update` | Skip package database update |
-| `--log-file <path>` | Custom log location (default: /var/log/kali-tools-install.log) |
+| `--log-file <path>` | Custom log location (default: /var/log/kali-tools-install.log, fallback /tmp) |
 | `--list-installed` | List installed Kali tools |
 | `--precheck` | Check package availability in repos (no install) |
 | `--help`, `-h` | Show help |
@@ -139,10 +139,10 @@ Kali tools are organized into categories. Install all or select specific ones:
 Edit `config/kali-tools.list` to customize which tools are installed:
 
 ```ini
-# Format: tool_name|category|debian_pkg|arch_pkg|fedora_pkg|slackware_pkg
-nmap|info|nmap|nmap|nmap|nmap
-metasploit-framework|exploit|metasploit-framework|metasploit|metasploit-framework|
-burpsuite|web|burpsuite|burpsuite|burpsuite|
+# Format: tool_name|category|description|debian_pkg|arch_pkg|fedora_pkg|slackware_pkg|opensuse_pkg|gentoo_pkg|alpine_pkg|void_pkg|deps
+nmap|info|Network exploration and security auditing|nmap|nmap|nmap|nmap|nmap|net-analyzer/nmap|nmap|nmap|python3-pip,curl
+metasploit-framework|exploit|Metasploit Framework|metasploit-framework|metasploit|metasploit-framework|metasploit-framework|metasploit-framework||||
+burpsuite|web|Web proxy and scanner|burpsuite||burpsuite|burpsuite|burpsuite||||
 ```
 
 ### Adding New Distributions
@@ -154,7 +154,7 @@ burpsuite|web|burpsuite|burpsuite|burpsuite|
 
 ## Logging
 
-All operations logged to `/var/log/kali-tools-install.log` by default.
+All operations are logged to `/var/log/kali-tools-install.log` by default (automatically falls back to `/tmp/kali-tools-install-${UID}.log` when run without root privilege).
 
 ```bash
 # View live logs
