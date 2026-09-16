@@ -13,6 +13,7 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 - **Automated dependency resolution**: Resolves and pre-installs required runtime dependencies (`deps` column) and automatically provisions build prerequisites (`go`, `python3-pip`, `cmake`, `make`, `gcc`, `git`) before compiling source fallbacks
 - **Tool uninstallation & cleanup engine**: Cleanly remove installed tools, presets, or categories (`--uninstall` / `--remove`) via native package managers and purge `/usr/local/bin` and `/opt` source build files with safe `--dry-run` previews
 - **Persistent configuration file**: Store defaults (distribution, presets, categories, tools, BlackArch enablement, log locations) in `${XDG_CONFIG_HOME:-~/.config}/kali-installer/config`, `/etc/kali-installer/config`, or a custom path with `--config <path>`
+- **Docker & CI automation**: Universal multi-distro `Dockerfile`, `docker-compose.yml`, local container test runner (`scripts/docker-test.sh`), and GitHub Actions CI matrix testing across 6 distributions on every push and PR
 - **High-performance batch installation**: Bundles packages into single native package transactions with automatic individual-package fallback on failure
 - **In-memory package resolution**: $O(1)$ tool-to-distro package mapping lookup without repeated disk/awk overhead
 - **Interactive & non-interactive modes**: Run manually or automate in CI/CD
@@ -269,6 +270,76 @@ tail -f /var/log/kali-tools-install.log
 grep -E "(SUCCESS|FAILED|SUMMARY)" /var/log/kali-tools-install.log
 ```
 
+## Docker & Container Automation
+
+Self-contained container environments are provided for local testing and deployment without impacting your host system.
+
+### Universal Multi-Distro Dockerfile
+
+The included [`Dockerfile`](Dockerfile) supports building for any supported Linux base image (`archlinux`, `ubuntu`, `debian`, `fedora`, `alpine`, `opensuse`):
+
+```bash
+# Build default Arch Linux image
+docker build -t kali-installer .
+
+# Build for Ubuntu 24.04
+docker build --build-arg BASE_IMAGE=ubuntu:24.04 -t kali-installer:ubuntu .
+
+# Build for Fedora 40
+docker build --build-arg BASE_IMAGE=fedora:40 -t kali-installer:fedora .
+
+# Run non-interactive installation preview inside container
+docker run --rm -it kali-installer --preset top10 --dry-run
+```
+
+### Docker Compose Multi-Distro Testing
+
+Use [`docker-compose.yml`](docker-compose.yml) to spin up isolated container environments for any distribution with the repository live-mounted:
+
+```bash
+# Run test suite in an Arch Linux container
+docker compose run --rm arch
+
+# Run test suite in an Ubuntu container
+docker compose run --rm ubuntu
+
+# Run test suite in a Debian container
+docker compose run --rm debian
+
+# Run test suite in an Alpine container
+docker compose run --rm alpine
+```
+
+### Local Multi-Distro Test Runner (`scripts/docker-test.sh`)
+
+A dedicated script [`scripts/docker-test.sh`](scripts/docker-test.sh) automates testing across any target distribution using Docker or Podman:
+
+```bash
+# Test on a specific distribution
+./scripts/docker-test.sh arch
+./scripts/docker-test.sh debian
+./scripts/docker-test.sh fedora
+
+# Test across all distributions sequentially
+./scripts/docker-test.sh all
+
+# Execute custom installer command inside an Arch container
+./scripts/docker-test.sh arch ./install.sh --preset top10 --dry-run
+```
+
+### Continuous Integration (GitHub Actions)
+
+Every push and pull request triggers [`.github/workflows/ci.yml`](.github/workflows/ci.yml), which executes:
+1. **Script syntax validation** (`bash -n` and `shellcheck`).
+2. **Containerized matrix testing** across 6 distributions:
+   - Arch Linux (`archlinux:latest`)
+   - Ubuntu 24.04 LTS (`ubuntu:24.04`)
+   - Debian 12 Bookworm (`debian:bookworm`)
+   - Fedora 40 (`fedora:40`)
+   - Alpine Linux (`alpine:latest`)
+   - openSUSE Tumbleweed (`opensuse/tumbleweed:latest`)
+3. **Multi-distro Dockerfile build verification**.
+
 ## Troubleshooting
 
 ### Common Issues
@@ -343,14 +414,22 @@ which nmap && nmap --version
 
 ```
 kali-tools-installer/
+├── .github/
+│   └── workflows/
+│       └── ci.yml          # GitHub Actions multi-distro CI workflow
+├── Dockerfile              # Universal multi-distro container definition
+├── docker-compose.yml      # Multi-distro container environment configuration
 ├── install.sh              # Main entry point
 ├── lib/
 │   ├── distro.sh           # Distribution detection
 │   ├── packages.sh         # Package name mappings
 │   ├── installer.sh        # Installation orchestration
-│   └── utils.sh            # Shared utilities (logging, colors, etc.)
+│   └── utils.sh            # Shared utilities (logging, colors, config)
 ├── config/
+│   ├── kali-installer.conf.example # Example configuration file
 │   └── kali-tools.list     # Master tool definitions
+├── scripts/
+│   └── docker-test.sh      # Local multi-distro test runner
 ├── tests/
 │   └── test_install.sh     # Verification tests
 └── AGENTS.md               # Agent instructions
@@ -358,7 +437,7 @@ kali-tools-installer/
 
 ### Running Tests
 
-The test suite contains 42 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, BlackArch repository bootstrapping, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, build recipes, and clean logging:
+The test suite contains 43 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, BlackArch repository bootstrapping, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, CI & Docker automation, build recipes, and clean logging:
 
 ```bash
 # Run the complete test suite

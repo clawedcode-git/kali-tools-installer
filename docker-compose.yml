@@ -1,0 +1,54 @@
+services:
+  arch:
+    build:
+      context: .
+      args:
+        BASE_IMAGE: archlinux:latest
+    volumes:
+      - .:/kali-tools-installer
+    command: ["./tests/test_install.sh"]
+
+  ubuntu:
+    build:
+      context: .
+      args:
+        BASE_IMAGE: ubuntu:24.04
+    volumes:
+      - .:/kali-tools-installer
+    command: ["./tests/test_install.sh"]
+
+  debian:
+    build:
+      context: .
+      args:
+        BASE_IMAGE: debian:bookworm
+    volumes:
+      - .:/kali-tools-installer
+    command: ["./tests/test_install.sh"]
+
+  fedora:
+    build:
+      context: .
+      args:
+        BASE_IMAGE: fedora:40
+    volumes:
+      - .:/kali-tools-installer
+    command: ["./tests/test_install.sh"]
+
+  alpine:
+    build:
+      context: .
+      args:
+        BASE_IMAGE: alpine:latest
+    volumes:
+      - .:/kali-tools-installer
+    command: ["./tests/test_install.sh"]
+
+  opensuse:
+    build:
+      context: .
+      args:
+        BASE_IMAGE: opensuse/tumbleweed:latest
+    volumes:
+      - .:/kali-tools-installer
+    command: ["./tests/test_install.sh"]

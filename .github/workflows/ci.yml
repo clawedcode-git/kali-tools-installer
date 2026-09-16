@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  syntax-and-lint:
+    name: Script Syntax Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Validate Bash Syntax (bash -n)
+        run: |
+          for script in install.sh lib/*.sh tests/*.sh scripts/*.sh; do
+            if [[ -f "${script}" ]]; then
+              echo "Checking syntax: ${script}"
+              bash -n "${script}"
+            fi
+          done
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          ignore_paths: >-
+            .git
+          severity: error
+
+  multi-distro-test:
+    name: Test on ${{ matrix.distro.name }}
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.distro.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - name: Arch Linux
+            image: archlinux:latest
+            setup: pacman -Syu --noconfirm --needed bash coreutils grep sed git
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+            setup: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends bash coreutils grep sed git
+          - name: Debian 12 (Bookworm)
+            image: debian:bookworm
+            setup: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends bash coreutils grep sed git
+          - name: Fedora 40
+            image: fedora:40
+            setup: dnf install -y bash coreutils grep sed git
+          - name: Alpine Linux
+            image: alpine:latest
+            setup: apk add --no-cache bash coreutils grep sed git
+          - name: openSUSE Tumbleweed
+            image: opensuse/tumbleweed:latest
+            setup: zypper --non-interactive install -y bash coreutils grep sed git
+
+    steps:
+      - name: Install Container Dependencies
+        run: ${{ matrix.distro.setup }}
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Test Suite
+        run: bash tests/test_install.sh
+
+      - name: Validate Precheck & Dry-Run
+        run: |
+          bash install.sh --preset top10 --precheck --dry-run
+          bash install.sh --preset top10 --uninstall --dry-run
+          bash install.sh --config config/kali-installer.conf.example --dry-run
+
+  docker-build-test:
+    name: Dockerfile Build Verification
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        base:
+          - archlinux:latest
+          - ubuntu:24.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image (${{ matrix.base }})
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          build-args: |
+            BASE_IMAGE=${{ matrix.base }}
+          push: false

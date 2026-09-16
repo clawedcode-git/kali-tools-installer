@@ -624,6 +624,40 @@ EOF
     test_log "PASS: safe key-value parsing, trimming, quotes, and injection safety verified"
 }
 
+test_ci_and_docker_automation() {
+    test_log "Testing CI workflow, Dockerfile, compose, and runner scripts..."
+    
+    local ci_file="${PROJECT_ROOT}/.github/workflows/ci.yml"
+    [[ -f "${ci_file}" ]] || { test_log "FAIL: .github/workflows/ci.yml missing"; return 1; }
+    grep -q "archlinux:latest" "${ci_file}" || { test_log "FAIL: ci.yml missing archlinux"; return 1; }
+    grep -q "ubuntu:24.04" "${ci_file}" || { test_log "FAIL: ci.yml missing ubuntu"; return 1; }
+    grep -q "debian:bookworm" "${ci_file}" || { test_log "FAIL: ci.yml missing debian"; return 1; }
+    grep -q "fedora:40" "${ci_file}" || { test_log "FAIL: ci.yml missing fedora"; return 1; }
+    grep -q "alpine:latest" "${ci_file}" || { test_log "FAIL: ci.yml missing alpine"; return 1; }
+    grep -q "opensuse/tumbleweed:latest" "${ci_file}" || { test_log "FAIL: ci.yml missing opensuse"; return 1; }
+    
+    local dockerfile="${PROJECT_ROOT}/Dockerfile"
+    [[ -f "${dockerfile}" ]] || { test_log "FAIL: Dockerfile missing"; return 1; }
+    grep -q "ARG BASE_IMAGE=" "${dockerfile}" || { test_log "FAIL: Dockerfile missing BASE_IMAGE arg"; return 1; }
+    grep -q "ENTRYPOINT" "${dockerfile}" || { test_log "FAIL: Dockerfile missing ENTRYPOINT"; return 1; }
+    grep -q "kali" "${dockerfile}" || { test_log "FAIL: Dockerfile missing non-root kali user"; return 1; }
+    
+    local compose_file="${PROJECT_ROOT}/docker-compose.yml"
+    [[ -f "${compose_file}" ]] || { test_log "FAIL: docker-compose.yml missing"; return 1; }
+    grep -q "arch:" "${compose_file}" || { test_log "FAIL: docker-compose.yml missing arch service"; return 1; }
+    grep -q "ubuntu:" "${compose_file}" || { test_log "FAIL: docker-compose.yml missing ubuntu service"; return 1; }
+    
+    local runner_script="${PROJECT_ROOT}/scripts/docker-test.sh"
+    [[ -f "${runner_script}" ]] || { test_log "FAIL: scripts/docker-test.sh missing"; return 1; }
+    [[ -x "${runner_script}" ]] || { test_log "FAIL: scripts/docker-test.sh not executable"; return 1; }
+    
+    local runner_help
+    runner_help=$("${runner_script}" --help 2>&1)
+    echo "${runner_help}" | grep -q "Usage: docker-test.sh" || { test_log "FAIL: docker-test.sh --help failed: ${runner_help}"; return 1; }
+    
+    test_log "PASS: CI workflow, Dockerfile, compose, and runner scripts verified"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -672,6 +706,7 @@ run_tests() {
     test_config_cli_override || ((failed+=1))
     test_custom_config_flag || ((failed+=1))
     test_config_safe_parsing || ((failed+=1))
+    test_ci_and_docker_automation || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then
