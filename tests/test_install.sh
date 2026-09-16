@@ -996,6 +996,51 @@ test_bbs_menu_shortcuts() {
     test_log "PASS: BBS menu shortcuts verified"
 }
 
+test_doctor_mode_dry_run() {
+    test_log "Testing --doctor mode output and table rendering..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --doctor 2>&1)
+    echo "${out}" | grep -q "Kali Tools Doctor & Binary Verification" || { test_log "FAIL: doctor header missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "Doctor Health Summary" || { test_log "FAIL: doctor health summary missing: ${out}"; return 1; }
+    test_log "PASS: --doctor mode execution verified"
+}
+
+test_sandbox_dry_run() {
+    test_log "Testing --sandbox mode dry-run execution..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --sandbox sqlmap --dry-run 2>&1)
+    echo "${out}" | grep -q "Isolated Tool Sandboxing: sqlmap" || { test_log "FAIL: sandbox header missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "Would run podman/docker container" || { test_log "FAIL: expected container execution plan: ${out}"; return 1; }
+    test_log "PASS: --sandbox mode dry-run verified"
+}
+
+test_bundle_generation_dry_run() {
+    test_log "Testing --bundle generator dry-run execution..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --bundle /tmp/test-bundle.tar.gz --preset top10 --dry-run 2>&1)
+    echo "${out}" | grep -q "Offline / Air-Gapped Bundle Generator" || { test_log "FAIL: bundle generator header missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "Preset 'top10'" || { test_log "FAIL: expected top10 scope in bundle: ${out}"; return 1; }
+    echo "${out}" | grep -q "Would package tools into /tmp/test-bundle.tar.gz" || { test_log "FAIL: expected dry-run packaging message: ${out}"; return 1; }
+    test_log "PASS: --bundle generator dry-run verified"
+}
+
+test_snapshot_and_rollback_flow() {
+    test_log "Testing snapshot creation, listing, and rollback dry-run..."
+    local out
+    out=$(SNAPSHOT_DIR="/tmp/test_snapshots_$$" bash "${PROJECT_ROOT}/install.sh" --distro arch --snapshot 2>&1)
+    echo "${out}" | grep -q "Creating snapshot:" || { test_log "FAIL: snapshot creation header missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "Snapshot saved:" || { test_log "FAIL: snapshot save confirmation missing: ${out}"; return 1; }
+
+    out=$(SNAPSHOT_DIR="/tmp/test_snapshots_$$" bash "${PROJECT_ROOT}/install.sh" --distro arch --list-snapshots 2>&1)
+    echo "${out}" | grep -q "Available System Snapshots" || { test_log "FAIL: list-snapshots header missing: ${out}"; rm -rf "/tmp/test_snapshots_$$"; return 1; }
+    echo "${out}" | grep -q "manual" || { test_log "FAIL: snapshot row missing from listing: ${out}"; rm -rf "/tmp/test_snapshots_$$"; return 1; }
+
+    out=$(SNAPSHOT_DIR="/tmp/test_snapshots_$$" bash "${PROJECT_ROOT}/install.sh" --distro arch --rollback latest --dry-run 2>&1)
+    echo "${out}" | grep -q "Rolling Back to Snapshot:" || { test_log "FAIL: rollback header missing: ${out}"; rm -rf "/tmp/test_snapshots_$$"; return 1; }
+    rm -rf "/tmp/test_snapshots_$$"
+    test_log "PASS: snapshot creation, listing, and rollback flow verified"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -1075,6 +1120,10 @@ run_tests() {
     test_completion_zsh || ((failed+=1))
     test_enhanced_blackarch_mappings || ((failed+=1))
     test_bbs_menu_shortcuts || ((failed+=1))
+    test_doctor_mode_dry_run || ((failed+=1))
+    test_sandbox_dry_run || ((failed+=1))
+    test_bundle_generation_dry_run || ((failed+=1))
+    test_snapshot_and_rollback_flow || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then

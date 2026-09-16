@@ -19,8 +19,13 @@ parse_args() {
     declare -g NO_TUI="${NO_TUI:-false}"
     declare -g EXPORT_REPORT_FILE="${EXPORT_REPORT_FILE:-}"
     declare -g UPDATE_MODE="${UPDATE_MODE:-false}"
-    declare -g DIFF_MODE="${DIFF_MODE:-false}"
     declare -g SHELL_COMPLETION="${SHELL_COMPLETION:-}"
+    declare -g DOCTOR_MODE="${DOCTOR_MODE:-false}"
+    declare -g SANDBOX_TOOL="${SANDBOX_TOOL:-}"
+    declare -g BUNDLE_FILE="${BUNDLE_FILE:-}"
+    declare -g SNAPSHOT_ACTION="${SNAPSHOT_ACTION:-}"
+    declare -g SNAPSHOT_ID="${SNAPSHOT_ID:-}"
+    declare -g SNAPSHOT_DIR="${SNAPSHOT_DIR:-${XDG_DATA_HOME:-${HOME:-/root}/.local/share}/kali-installer/snapshots}"
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -232,6 +237,80 @@ parse_args() {
                 export EXPORT_REPORT_FILE
                 shift
                 ;;
+            --doctor|--verify)
+                DOCTOR_MODE=true
+                export DOCTOR_MODE
+                shift
+                ;;
+            --sandbox)
+                if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+                    error "Option $1 requires a tool name argument"
+                    print_help
+                    exit 1
+                fi
+                SANDBOX_TOOL="${2,,}"
+                export SANDBOX_TOOL
+                shift 2
+                ;;
+            --sandbox=*)
+                SANDBOX_TOOL="${1#--sandbox=}"
+                SANDBOX_TOOL="${SANDBOX_TOOL,,}"
+                if [[ -z "${SANDBOX_TOOL}" ]]; then
+                    error "Option --sandbox requires a tool name"
+                    print_help
+                    exit 1
+                fi
+                export SANDBOX_TOOL
+                shift
+                ;;
+            --bundle)
+                if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+                    error "Option $1 requires an output archive path (e.g. bundle.tar.gz)"
+                    print_help
+                    exit 1
+                fi
+                BUNDLE_FILE="$2"
+                export BUNDLE_FILE
+                shift 2
+                ;;
+            --bundle=*)
+                BUNDLE_FILE="${1#--bundle=}"
+                if [[ -z "${BUNDLE_FILE}" ]]; then
+                    error "Option --bundle requires an output archive path"
+                    print_help
+                    exit 1
+                fi
+                export BUNDLE_FILE
+                shift
+                ;;
+            --snapshot)
+                SNAPSHOT_ACTION="create"
+                export SNAPSHOT_ACTION
+                shift
+                ;;
+            --list-snapshots)
+                SNAPSHOT_ACTION="list"
+                export SNAPSHOT_ACTION
+                shift
+                ;;
+            --rollback)
+                SNAPSHOT_ACTION="rollback"
+                if [[ $# -ge 2 && -n "${2:-}" && "${2:-}" != --* ]]; then
+                    SNAPSHOT_ID="$2"
+                    shift 2
+                else
+                    SNAPSHOT_ID="latest"
+                    shift
+                fi
+                export SNAPSHOT_ACTION SNAPSHOT_ID
+                ;;
+            --rollback=*)
+                SNAPSHOT_ACTION="rollback"
+                SNAPSHOT_ID="${1#--rollback=}"
+                [[ -z "${SNAPSHOT_ID}" ]] && SNAPSHOT_ID="latest"
+                export SNAPSHOT_ACTION SNAPSHOT_ID
+                shift
+                ;;
             --help|-h)
                 SHOW_HELP=true
                 shift
@@ -244,7 +323,7 @@ parse_args() {
         esac
     done
     
-    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL CONFIG_FILE NO_TUI LIST_INSTALLED EXPORT_REPORT_FILE UPDATE_MODE DIFF_MODE SHELL_COMPLETION
+    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL CONFIG_FILE NO_TUI LIST_INSTALLED EXPORT_REPORT_FILE UPDATE_MODE DIFF_MODE SHELL_COMPLETION DOCTOR_MODE SANDBOX_TOOL BUNDLE_FILE SNAPSHOT_ACTION SNAPSHOT_ID SNAPSHOT_DIR
 }
 
 print_help() {
@@ -273,6 +352,12 @@ Options:
     --completion <bash|zsh> Output shell tab completion script to stdout
     --precheck              Check package availability (official/AUR/pipx/BlackArch)
     --export-report <path>  Export availability/install report to JSON or CSV file
+    --doctor, --verify      Run health check & binary verification on installed tools
+    --sandbox <tool>        Run a Kali tool inside an isolated rootless container (podman/docker)
+    --bundle <path.tar.gz>  Build an offline, air-gapped installation archive
+    --snapshot              Record current system/tool state to a new snapshot
+    --list-snapshots        List all available recovery snapshots
+    --rollback [id]         Roll back installed tools to a snapshot (default: latest)
     --help, -h              Show this help
 
 Install tiers (Arch/CachyOS): official repos → AUR → pipx/pip → BlackArch → source build
@@ -291,6 +376,11 @@ Examples:
     sudo $(basename "$0") --precheck --distro arch              # Check package availability
     sudo $(basename "$0") --precheck --export-report /tmp/report.json  # Export precheck as JSON
     sudo $(basename "$0") --list-installed                      # Installed tools dashboard
+    sudo $(basename "$0") --doctor                              # Health check & verify installed tools
+    sudo $(basename "$0") --sandbox sqlmap                      # Run sqlmap inside isolated container
+    sudo $(basename "$0") --bundle ~/kali-bundle.tar.gz --preset top10 # Create offline bundle
+    sudo $(basename "$0") --snapshot                            # Create snapshot before changes
+    sudo $(basename "$0") --rollback latest                     # Rollback to last snapshot
     sudo $(basename "$0") --diff --preset top10                 # Compare top10 vs installed
     sudo $(basename "$0") --update --dry-run                    # Preview updates for installed tools
     sudo $(basename "$0") --tools wfuzz --method-override wfuzz:pip --yes # Pin method
@@ -1061,6 +1151,10 @@ install_dependencies() {
 }
 
 run_installation() {
+    if [[ "${DRY_RUN}" != "true" ]]; then
+        create_snapshot "auto-pre-install" >/dev/null 2>&1 || true
+    fi
+
     if [[ "${ENABLE_BLACKARCH:-false}" == "true" && "${DISTRO_FAMILY}" == "arch" ]]; then
         setup_blackarch
     fi
@@ -2419,7 +2513,7 @@ _kali_tools_installer() {
     local cur prev words cword
     _init_completion || return
 
-    local options="--distro --preset --categories --tools --config --yes -y --dry-run --no-update --no-deps --uninstall --remove --update --diff --method-override --method --enable-blackarch --no-tui --plain --log-file --list-installed --completion --precheck --export-report --help -h"
+    local options="--distro --preset --categories --tools --config --yes -y --dry-run --no-update --no-deps --uninstall --remove --update --diff --method-override --method --enable-blackarch --no-tui --plain --log-file --list-installed --completion --precheck --export-report --doctor --verify --sandbox --bundle --snapshot --list-snapshots --rollback --help -h"
 EOF
             echo "    local distros=\"${distros}\""
             echo "    local presets=\"${presets}\""
@@ -2441,11 +2535,11 @@ EOF
             COMPREPLY=( $(compgen -W "${categories}" -- "${cur}") )
             return 0
             ;;
-        --tools)
+        --tools|--sandbox)
             COMPREPLY=( $(compgen -W "${tools}" -- "${cur}") )
             return 0
             ;;
-        --config|--log-file|--export-report)
+        --config|--log-file|--export-report|--bundle)
             _filedir
             return 0
             ;;
@@ -2500,6 +2594,13 @@ EOF
         '--completion[Output shell tab completion script]:shell:(bash zsh)'
         '--precheck[Check package availability]'
         '--export-report[Export availability/install report]:report file:_files'
+        '--doctor[Health check & verify installed tools]'
+        '--verify[Health check & verify installed tools]'
+        '--sandbox[Run a tool inside an isolated rootless container]:tool:'
+        '--bundle[Build an offline air-gapped installation archive]:bundle file:_files'
+        '--snapshot[Record current system/tool state to a new snapshot]'
+        '--list-snapshots[List all available recovery snapshots]'
+        '--rollback[Roll back installed tools to a snapshot]:snapshot id:'
         '--help[Show help]'
         '-h[Show help]'
     )
@@ -2514,4 +2615,489 @@ EOF
             return 1
             ;;
     esac
+}
+
+# ---------------------------------------------------------------------------
+# run_doctor — Health Check & Binary Verification Engine
+# ---------------------------------------------------------------------------
+run_doctor() {
+    info "=== Kali Tools Doctor & Binary Verification ==="
+    info "Distribution: ${DISTRO:-unknown} (${DISTRO_FAMILY:-unknown})"
+    info "Package Manager: ${PACKAGE_MANAGER:-unknown}"
+    echo
+
+    local -a scope_tools=()
+    if [[ -n "${SELECTED_PRESET:-}" ]]; then
+        read -ra scope_tools <<< "$(get_tools_in_preset "${SELECTED_PRESET}")"
+    elif [[ ${#SELECTED_CATEGORIES[@]} -gt 0 ]]; then
+        for c in "${SELECTED_CATEGORIES[@]}"; do
+            local -a c_tools=()
+            read -ra c_tools <<< "$(get_tools_in_category "${c}")"
+            scope_tools+=("${c_tools[@]}")
+        done
+    elif [[ ${#SELECTED_TOOLS[@]} -gt 0 ]]; then
+        scope_tools=("${SELECTED_TOOLS[@]}")
+    else
+        mapfile -t scope_tools < <(list_all_tools)
+    fi
+
+    printf "  %-18s %-10s %-12s %-20s %-16s\n" "TOOL" "STATUS" "METHOD" "VERSION" "DIAGNOSTIC / NOTES"
+    printf "  %-18s %-10s %-12s %-20s %-16s\n" "------------------" "----------" "------------" "--------------------" "----------------"
+
+    local total_checked=0
+    local count_pass=0
+    local count_warn=0
+    local count_fail=0
+    local -a doctor_report_entries=()
+
+    for tool in "${scope_tools[@]}"; do
+        local cat
+        cat=$(get_tool_category "${tool}")
+        local info_str
+        info_str=$(get_installed_tool_info "${tool}")
+        local is_inst method ver
+        IFS='|' read -r is_inst method ver <<< "${info_str}"
+
+        # If tool is not installed, skip or report missing
+        if [[ "${is_inst}" != "true" && ! -x "/usr/bin/${tool}" && ! -x "/usr/local/bin/${tool}" && ! -x "/opt/${tool}/${tool}" ]]; then
+            continue
+        fi
+
+        total_checked=$((total_checked + 1))
+        local status_str="HEALTHY"
+        local notes="OK"
+
+        local bin_path=""
+        if command -v "${tool}" &>/dev/null; then
+            bin_path=$(command -v "${tool}")
+        elif [[ -x "/usr/local/bin/${tool}" ]]; then
+            bin_path="/usr/local/bin/${tool}"
+        elif [[ -x "/usr/bin/${tool}" ]]; then
+            bin_path="/usr/bin/${tool}"
+        elif [[ -x "/opt/${tool}/${tool}" ]]; then
+            bin_path="/opt/${tool}/${tool}"
+        fi
+
+        if [[ -z "${bin_path}" ]]; then
+            status_str="BROKEN"
+            notes="Binary not in PATH"
+            count_fail=$((count_fail + 1))
+        else
+            # Check interpreter shebang
+            if head -n 1 "${bin_path}" 2>/dev/null | grep -q "^#\!"; then
+                local shebang
+                shebang=$(head -n 1 "${bin_path}")
+                if [[ "${shebang}" =~ python && ! $(command -v python3 || command -v python) ]]; then
+                    status_str="DEGRADED"
+                    notes="Missing Python runtime"
+                    count_warn=$((count_warn + 1))
+                elif [[ "${shebang}" =~ ruby && ! $(command -v ruby) ]]; then
+                    status_str="DEGRADED"
+                    notes="Missing Ruby runtime"
+                    count_warn=$((count_warn + 1))
+                elif [[ "${shebang}" =~ perl && ! $(command -v perl) ]]; then
+                    status_str="DEGRADED"
+                    notes="Missing Perl runtime"
+                    count_warn=$((count_warn + 1))
+                fi
+            fi
+
+            # Execution probe if still healthy
+            if [[ "${status_str}" == "HEALTHY" ]]; then
+                # Run probe with 2s timeout
+                local probe_out=""
+                if command -v timeout &>/dev/null; then
+                    probe_out=$(timeout 2 "${bin_path}" --version 2>&1 || timeout 2 "${bin_path}" -h 2>&1 || true)
+                else
+                    probe_out=$("${bin_path}" --version 2>&1 || "${bin_path}" -h 2>&1 || true)
+                fi
+
+                if echo "${probe_out}" | grep -iqE "ModuleNotFoundError|ImportError|cannot open shared object file|syntax error|undefined symbol"; then
+                    status_str="BROKEN"
+                    notes="Missing runtime libraries/modules"
+                    count_fail=$((count_fail + 1))
+                else
+                    count_pass=$((count_pass + 1))
+                fi
+            fi
+        fi
+
+        local display_ver="${ver}"
+        [[ "${display_ver}" == "unknown" ]] && display_ver="-"
+        [[ ${#display_ver} -gt 19 ]] && display_ver="${display_ver:0:16}..."
+
+        printf "  %-18s %-10s %-12s %-20s %-16s\n" "${tool}" "${status_str}" "${method}" "${display_ver}" "${notes}"
+        doctor_report_entries+=("${status_str}|${tool}|${cat}|${bin_path:-none}|${notes}")
+    done
+
+    echo
+    info "=== Doctor Health Summary ==="
+    info "Total installed tools evaluated: ${total_checked}"
+    if [[ ${total_checked} -eq 0 ]]; then
+        info "No installed Kali tools detected in selected scope."
+        return 0
+    fi
+
+    success "Healthy:  ${count_pass}"
+    [[ ${count_warn} -gt 0 ]] && warn "Degraded: ${count_warn}"
+    [[ ${count_fail} -gt 0 ]] && error "Broken:   ${count_fail}"
+
+    if [[ -n "${EXPORT_REPORT_FILE:-}" ]]; then
+        declare -ga INSTALL_RESULTS=()
+        for r in "${doctor_report_entries[@]}"; do
+            IFS='|' read -r st t_name t_cat bpath t_note <<< "${r}"
+            INSTALL_RESULTS+=("${st}:${t_name} (${t_note})")
+        done
+        export_report
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# run_sandbox — Isolated Rootless Container Execution
+# ---------------------------------------------------------------------------
+run_sandbox() {
+    local tool="${SANDBOX_TOOL:-${1:-}}"
+    if [[ -z "${tool}" ]]; then
+        error "No tool specified for sandbox execution"
+        return 1
+    fi
+
+    info "=== Isolated Tool Sandboxing: ${tool} ==="
+    local container_runtime=""
+    if command -v podman &>/dev/null; then
+        container_runtime="podman"
+    elif command -v docker &>/dev/null; then
+        container_runtime="docker"
+    fi
+
+    local kali_image="docker.io/kalilinux/kali-rolling:latest"
+    local work_dir="$(pwd)"
+
+    if [[ -z "${container_runtime}" ]]; then
+        if [[ "${DRY_RUN}" == "true" ]]; then
+            info "[DRY RUN] Would run podman/docker container for ${tool}:"
+            info "[DRY RUN]   podman run --rm -it --net=host -v \"${work_dir}:/work:z\" -w /work ${kali_image} ${tool}"
+            return 0
+        fi
+        if command -v bwrap &>/dev/null; then
+            info "Container runtime (podman/docker) not found. Using Bubblewrap (bwrap) sandbox fallback..."
+            local -a bwrap_args=(
+                bwrap
+                --ro-bind / /
+                --dev /dev
+                --proc /proc
+                --tmpfs /tmp
+                --bind "${work_dir}" /work
+                --chdir /work
+                --unshare-all
+                --share-net
+                "${tool}"
+            )
+            exec "${bwrap_args[@]}"
+        else
+            error "No container runtime found! Please install 'podman' or 'docker' for rootless container sandboxing, or 'bubblewrap' (bwrap) for local sandbox isolation."
+            return 1
+        fi
+    fi
+
+    info "Runtime: ${container_runtime} (image: ${kali_image})"
+    info "Mounting host directory: ${work_dir} → /work"
+
+    local -a container_cmd=(
+        "${container_runtime}" run --rm -it
+        --net=host
+        -v "${work_dir}:/work:z"
+        -w /work
+        "${kali_image}"
+        bash -c "command -v ${tool} &>/dev/null || (apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ${tool}); exec ${tool} \"\$@\""
+        --
+    )
+
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        info "[DRY RUN] Would execute command:"
+        echo "  ${container_cmd[*]}"
+        return 0
+    fi
+
+    info "Launching sandbox container..."
+    "${container_cmd[@]}"
+}
+
+# ---------------------------------------------------------------------------
+# run_bundle — Offline / Air-Gapped Bundle Generator
+# ---------------------------------------------------------------------------
+run_bundle() {
+    local target_bundle="${BUNDLE_FILE:-kali-tools-bundle.tar.gz}"
+    info "=== Offline / Air-Gapped Bundle Generator ==="
+    info "Target output: ${target_bundle}"
+
+    local -a scope_tools=()
+    if [[ -n "${SELECTED_PRESET:-}" ]]; then
+        info "Scope: Preset '${SELECTED_PRESET}'"
+        read -ra scope_tools <<< "$(get_tools_in_preset "${SELECTED_PRESET}")"
+    elif [[ ${#SELECTED_CATEGORIES[@]} -gt 0 ]]; then
+        info "Scope: Categories '${SELECTED_CATEGORIES[*]}'"
+        for c in "${SELECTED_CATEGORIES[@]}"; do
+            local -a c_tools=()
+            read -ra c_tools <<< "$(get_tools_in_category "${c}")"
+            scope_tools+=("${c_tools[@]}")
+        done
+    elif [[ ${#SELECTED_TOOLS[@]} -gt 0 ]]; then
+        info "Scope: Specific Tools (${#SELECTED_TOOLS[@]})"
+        scope_tools=("${SELECTED_TOOLS[@]}")
+    else
+        info "Scope: Top 10 Preset (Default for offline bundle)"
+        read -ra scope_tools <<< "$(get_tools_in_preset "top10")"
+    fi
+
+    info "Bundling ${#scope_tools[@]} tools: ${scope_tools[*]}"
+
+    local temp_bundle_dir
+    temp_bundle_dir=$(mktemp -d -t kali-bundle-XXXXXX 2>/dev/null || mktemp -d /tmp/kali-bundle-XXXXXX)
+
+    mkdir -p "${temp_bundle_dir}/packages" "${temp_bundle_dir}/pip" "${temp_bundle_dir}/recipes"
+
+    # Create manifest
+    local timestamp
+    timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+    cat <<EOF > "${temp_bundle_dir}/manifest.json"
+{
+  "created_at": "${timestamp}",
+  "distro": "${DISTRO:-unknown}",
+  "package_manager": "${PACKAGE_MANAGER:-unknown}",
+  "tools": [
+$(for t in "${scope_tools[@]}"; do printf '    "%s",\n' "$t"; done | sed '$ s/,$//')
+  ]
+}
+EOF
+
+    # Embed standalone offline installer script
+    cat << 'EOF' > "${temp_bundle_dir}/offline-install.sh"
+#!/usr/bin/env bash
+set -euo pipefail
+BUNDLE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+echo "=== Installing Kali Tools from Offline Bundle ==="
+if [[ -f "${BUNDLE_DIR}/manifest.json" ]]; then
+    echo "Manifest: ${BUNDLE_DIR}/manifest.json"
+fi
+
+if compgen -G "${BUNDLE_DIR}/packages/*.pkg.tar.*" >/dev/null; then
+    echo "Installing cached pacman packages..."
+    pacman -U --noconfirm --needed "${BUNDLE_DIR}/packages/"*.pkg.tar.* || true
+elif compgen -G "${BUNDLE_DIR}/packages/*.deb" >/dev/null; then
+    echo "Installing cached debian packages..."
+    dpkg -i "${BUNDLE_DIR}/packages/"*.deb || apt-get install -fy || true
+elif compgen -G "${BUNDLE_DIR}/packages/*.rpm" >/dev/null; then
+    echo "Installing cached rpm packages..."
+    rpm -Uvh --replacepkgs "${BUNDLE_DIR}/packages/"*.rpm || true
+fi
+
+if compgen -G "${BUNDLE_DIR}/pip/*.whl" >/dev/null; then
+    echo "Installing Python wheels..."
+    pip3 install --no-index --find-links="${BUNDLE_DIR}/pip" "${BUNDLE_DIR}/pip/"*.whl 2>/dev/null || true
+fi
+
+echo "Offline bundle installation completed successfully."
+EOF
+    chmod +x "${temp_bundle_dir}/offline-install.sh"
+
+    # Copy files or download packages if connected
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        info "[DRY RUN] Would package tools into ${target_bundle}"
+        rm -rf "${temp_bundle_dir}"
+        return 0
+    fi
+
+    # Check if download tools are available
+    for tool in "${scope_tools[@]}"; do
+        local pkg
+        pkg=$(get_distro_pkg_name "${tool}")
+        if [[ -n "${pkg}" ]]; then
+            case "${PACKAGE_MANAGER}" in
+                pacman)
+                    if command -v pacman &>/dev/null; then
+                        pacman -Sw --noconfirm --cachedir "${temp_bundle_dir}/packages" "${pkg}" >/dev/null 2>&1 || true
+                    fi
+                    ;;
+                apt)
+                    if command -v apt-get &>/dev/null; then
+                        apt-get download -o Dir::Cache::archives="${temp_bundle_dir}/packages" "${pkg}" >/dev/null 2>&1 || true
+                    fi
+                    ;;
+                dnf)
+                    if command -v dnf &>/dev/null; then
+                        dnf download --destdir="${temp_bundle_dir}/packages" "${pkg}" >/dev/null 2>&1 || true
+                    fi
+                    ;;
+            esac
+        fi
+
+        # Check pip wheels
+        local pip_p
+        pip_p=$(get_tool_pip_pkg "${tool}")
+        if [[ -n "${pip_p}" && $(command -v pip3) ]]; then
+            pip3 download --dest "${temp_bundle_dir}/pip" "${pip_p}" >/dev/null 2>&1 || true
+        fi
+    done
+
+    mkdir -p "$(dirname "${target_bundle}")"
+    tar -czf "${target_bundle}" -C "${temp_bundle_dir}" .
+    rm -rf "${temp_bundle_dir}"
+    success "Offline bundle generated successfully: ${target_bundle}"
+}
+
+# ---------------------------------------------------------------------------
+# Snapshots & Rollback Engine
+# ---------------------------------------------------------------------------
+create_snapshot() {
+    local reason="${1:-manual}"
+    local snap_dir="${SNAPSHOT_DIR:-${XDG_DATA_HOME:-${HOME:-/root}/.local/share}/kali-installer/snapshots}"
+    if ! mkdir -p "${snap_dir}" 2>/dev/null; then
+        snap_dir="/tmp/kali-installer/snapshots"
+        mkdir -p "${snap_dir}" 2>/dev/null || true
+    fi
+
+    local snap_id
+    snap_id="$(date '+%Y%m%d_%H%M%S')"
+    local snap_file="${snap_dir}/snapshot_${snap_id}.json"
+
+    info "Creating snapshot: ${snap_id} (${reason})..."
+
+    local -a all_tools=()
+    mapfile -t all_tools < <(list_all_tools)
+
+    local -a installed_tools=()
+    for tool in "${all_tools[@]}"; do
+        local info_str
+        info_str=$(get_installed_tool_info "${tool}")
+        local is_inst method ver
+        IFS='|' read -r is_inst method ver <<< "${info_str}"
+        if [[ "${is_inst}" == "true" ]]; then
+            installed_tools+=("{\"name\":\"${tool}\",\"method\":\"${method}\",\"version\":\"${ver}\"}")
+        fi
+    done
+
+    cat <<EOF > "${snap_file}"
+{
+  "id": "${snap_id}",
+  "timestamp": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",
+  "reason": "${reason}",
+  "distro": "${DISTRO:-unknown}",
+  "package_manager": "${PACKAGE_MANAGER:-unknown}",
+  "tools": [
+$(printf '    %s,\n' "${installed_tools[@]}" | sed '$ s/,$//')
+  ]
+}
+EOF
+
+    success "Snapshot saved: ${snap_file} (${#installed_tools[@]} tools recorded)"
+    echo "${snap_id}"
+}
+
+list_snapshots() {
+    local snap_dir="${SNAPSHOT_DIR:-${XDG_DATA_HOME:-${HOME:-/root}/.local/share}/kali-installer/snapshots}"
+    if [[ ! -d "${snap_dir}" ]] || ! compgen -G "${snap_dir}/snapshot_*.json" >/dev/null; then
+        if [[ -d "/tmp/kali-installer/snapshots" ]] && compgen -G "/tmp/kali-installer/snapshots/snapshot_*.json" >/dev/null; then
+            snap_dir="/tmp/kali-installer/snapshots"
+        fi
+    fi
+    info "=== Available System Snapshots ==="
+    info "Directory: ${snap_dir}"
+    echo
+
+    if [[ ! -d "${snap_dir}" ]] || ! compgen -G "${snap_dir}/snapshot_*.json" >/dev/null; then
+        info "No snapshots found in ${snap_dir}."
+        return 0
+    fi
+
+    printf "  %-18s %-22s %-16s %-10s\n" "SNAPSHOT ID" "CREATED" "REASON" "TOOLS"
+    printf "  %-18s %-22s %-16s %-10s\n" "------------------" "----------------------" "----------------" "----------"
+
+    for snap in "${snap_dir}"/snapshot_*.json; do
+        [[ -f "${snap}" ]] || continue
+        local id stamp rsn count
+        id=$(grep -oE '"id": "[^"]+"' "${snap}" | head -n 1 | cut -d'"' -f4 || basename "${snap}" .json)
+        stamp=$(grep -oE '"timestamp": "[^"]+"' "${snap}" | head -n 1 | cut -d'"' -f4 || "-")
+        rsn=$(grep -oE '"reason": "[^"]+"' "${snap}" | head -n 1 | cut -d'"' -f4 || "-")
+        count=$(grep -c '"name":' "${snap}" 2>/dev/null) || count=0
+        printf "  %-18s %-22s %-16s %-10s\n" "${id}" "${stamp}" "${rsn}" "${count}"
+    done
+    echo
+}
+
+run_rollback() {
+    local target_id="${1:-latest}"
+    local snap_dir="${SNAPSHOT_DIR:-${XDG_DATA_HOME:-${HOME:-/root}/.local/share}/kali-installer/snapshots}"
+    if [[ ! -d "${snap_dir}" ]] || ! compgen -G "${snap_dir}/snapshot_*.json" >/dev/null; then
+        if [[ -d "/tmp/kali-installer/snapshots" ]] && compgen -G "/tmp/kali-installer/snapshots/snapshot_*.json" >/dev/null; then
+            snap_dir="/tmp/kali-installer/snapshots"
+        fi
+    fi
+
+    if [[ ! -d "${snap_dir}" ]] || ! compgen -G "${snap_dir}/snapshot_*.json" >/dev/null; then
+        error "No snapshots available to roll back to."
+        return 1
+    fi
+
+    local target_file=""
+    if [[ "${target_id}" == "latest" ]]; then
+        # Pick newest file by sorting
+        target_file=$(ls -1 "${snap_dir}"/snapshot_*.json 2>/dev/null | sort | tail -n 1)
+    else
+        if [[ -f "${snap_dir}/snapshot_${target_id}.json" ]]; then
+            target_file="${snap_dir}/snapshot_${target_id}.json"
+        elif [[ -f "${target_id}" ]]; then
+            target_file="${target_id}"
+        fi
+    fi
+
+    if [[ -z "${target_file}" || ! -f "${target_file}" ]]; then
+        error "Snapshot '${target_id}' not found in ${snap_dir}."
+        return 1
+    fi
+
+    info "=== Rolling Back to Snapshot: $(basename "${target_file}") ==="
+
+    # Read tools that were present in snapshot
+    local -A snapshot_tools=()
+    local snap_names
+    snap_names=$(grep -oE '"name": "[^"]+"' "${target_file}" | cut -d'"' -f4 || true)
+    while read -r name; do
+        [[ -n "${name}" ]] && snapshot_tools["${name}"]="1"
+    done <<< "${snap_names}"
+
+    # Find tools currently installed that were NOT in snapshot
+    local -a current_all=()
+    mapfile -t current_all < <(list_all_tools)
+
+    local -a tools_to_remove=()
+    for tool in "${current_all[@]}"; do
+        local info_str
+        info_str=$(get_installed_tool_info "${tool}")
+        local is_inst method ver
+        IFS='|' read -r is_inst method ver <<< "${info_str}"
+        if [[ "${is_inst}" == "true" && -z "${snapshot_tools["${tool}"]:-}" ]]; then
+            tools_to_remove+=("${tool}")
+        fi
+    done
+
+    if [[ ${#tools_to_remove[@]} -eq 0 ]]; then
+        success "No extraneous tools detected! System is already in sync with snapshot."
+        return 0
+    fi
+
+    info "Tools installed after snapshot (${#tools_to_remove[@]}): ${tools_to_remove[*]}"
+
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        info "[DRY RUN] Would remove tools: ${tools_to_remove[*]}"
+        return 0
+    fi
+
+    # Trigger uninstallation for the diff
+    declare -ga SELECTED_TOOLS=("${tools_to_remove[@]}")
+    declare -g UNINSTALL="true"
+    check_root
+    run_uninstallation
+    print_uninstall_summary
+    success "Rollback to snapshot $(basename "${target_file}") completed."
 }

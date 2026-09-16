@@ -11,6 +11,16 @@ UPDATE_MODE="${UPDATE_MODE:-false}"
 export UPDATE_MODE
 DIFF_MODE="${DIFF_MODE:-false}"
 export DIFF_MODE
+DOCTOR_MODE="${DOCTOR_MODE:-false}"
+export DOCTOR_MODE
+SANDBOX_TOOL="${SANDBOX_TOOL:-}"
+export SANDBOX_TOOL
+BUNDLE_FILE="${BUNDLE_FILE:-}"
+export BUNDLE_FILE
+SNAPSHOT_ACTION="${SNAPSHOT_ACTION:-}"
+export SNAPSHOT_ACTION
+SNAPSHOT_ID="${SNAPSHOT_ID:-}"
+export SNAPSHOT_ID
 
 source "${PROJECT_ROOT}/lib/utils.sh"
 source "${PROJECT_ROOT}/lib/distro.sh"
@@ -42,6 +52,32 @@ main() {
     init_logging
     detect_distro
     load_tool_list
+    
+    if [[ "${DOCTOR_MODE:-false}" == "true" ]]; then
+        run_doctor
+        exit 0
+    fi
+    
+    if [[ -n "${SANDBOX_TOOL:-}" ]]; then
+        run_sandbox "${SANDBOX_TOOL}"
+        exit 0
+    fi
+    
+    if [[ -n "${BUNDLE_FILE:-}" ]]; then
+        run_bundle
+        exit 0
+    fi
+    
+    if [[ "${SNAPSHOT_ACTION:-}" == "create" ]]; then
+        create_snapshot "manual"
+        exit 0
+    elif [[ "${SNAPSHOT_ACTION:-}" == "list" ]]; then
+        list_snapshots
+        exit 0
+    elif [[ "${SNAPSHOT_ACTION:-}" == "rollback" ]]; then
+        run_rollback "${SNAPSHOT_ID:-latest}"
+        exit 0
+    fi
     
     if [[ "${LIST_INSTALLED}" == "true" ]]; then
         list_installed_tools

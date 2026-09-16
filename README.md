@@ -1,7 +1,7 @@
 # Kali Tools Installer
 
 [![CI](https://github.com/clawedcode-git/kali-tools-installer/actions/workflows/ci.yml/badge.svg)](https://github.com/clawedcode-git/kali-tools-installer/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/Tests-73%20Passing-brightgreen.svg)](#running-tests)
+[![Tests](https://img.shields.io/badge/Tests-77%20Passing-brightgreen.svg)](#running-tests)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Bash](https://img.shields.io/badge/Bash-4.0%2B-brightgreen.svg)](https://www.gnu.org/software/bash/)
 [![Platform](https://img.shields.io/badge/Platform-Linux-blue.svg)](#supported-distributions)
@@ -14,6 +14,10 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 - **Cross-distribution support**: Automatically detects your distribution and uses the appropriate package manager
 - **Curated tool presets**: Quick installations using presets like `top10`, `default`, `headless`, `web`, `wireless`, and `passwords`
 - **Extensive Kali toolset**: Installs curated penetration testing and security auditing tools across 12 categories
+- **Tool Health Check & Binary Verification (`--doctor`)**: Validates installed security tools, PATH availability, shebang interpreter sanity (Python, Ruby, Perl), execution smoke tests with timeouts, and tabular scorecard diagnosis
+- **Isolated Tool Sandboxing & Rootless Containers (`--sandbox <tool>`)**: Run any Kali tool inside an isolated rootless container (`podman` or `docker` with `docker.io/kalilinux/kali-rolling` and host directory bind-mounts) or bubblewrap fallback
+- **Offline / Air-Gapped Bundle Generator (`--bundle <path.tar.gz>`)**: Bundle native packages, Python wheels, metadata manifest, and an embedded `offline-install.sh` for disconnected labs, CTFs, and air-gapped environments
+- **Transaction Snapshots & Rollback (`--snapshot`, `--list-snapshots`, `--rollback`)**: Automatic and manual JSON snapshots of installed tools before changes, with single-command state rollback
 - **Smart 5-tier installation fallback**: Intelligent resolution pipeline for Arch / CachyOS: `native pacman` → `AUR helpers` (`yay`/`paru`) → `pipx`/`pip3` (PyPI) → `BlackArch repo` → `source compilation`
 - **Interactive batch install progress bar & visual counter**: Real-time progress bar (`[42/108] 39% [=========> ] Installing nmap...`) adapting to terminal width with graceful line-by-line fallback for CI/redirected environments
 - **Shell tab completion generator**: `--completion <bash|zsh>` outputs full tab-completion definitions for flags, presets, categories, and all 171 tools
@@ -172,6 +176,12 @@ When combined with `--dry-run`, the installer evaluates availability, plans the 
 | `--diff` | Compare installed tools against selected scope (preset, category, or all) |
 | `--method-override <tool:method,...>` | Override installation method for specific tools (e.g. `wfuzz:pip,nmap:source`) |
 | `--completion <bash\|zsh>` | Output shell tab completion script to stdout (e.g. `eval "$(/path/to/install.sh --completion bash)"`) |
+| `--doctor`, `--verify` | Health check & smoke test verification on installed tools |
+| `--sandbox <tool>` | Run a tool inside an isolated rootless container (podman/docker) |
+| `--bundle <path.tar.gz>` | Build an offline, air-gapped installation archive with manifest & packages |
+| `--snapshot` | Record current system/tool state into a recovery JSON snapshot |
+| `--list-snapshots` | List all available recovery snapshots |
+| `--rollback [id]` | Roll back installed tools to a snapshot state (default: `latest`) |
 | `--help`, `-h` | Show help |
 
 ## Tool Presets
