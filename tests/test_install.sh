@@ -486,6 +486,49 @@ test_dependency_resolution_cli() {
     test_log "PASS: CLI dependency resolution and --no-deps verified"
 }
 
+test_uninstall_cli_dry_run() {
+    test_log "Testing --uninstall CLI flag with dry-run..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --tools nmap,wireshark --uninstall --dry-run 2>&1)
+    echo "${out}" | grep -q "Starting uninstallation of 2 tools" || { test_log "FAIL: uninstall missing start message: ${out}"; return 1; }
+    echo "${out}" | grep -q "pacman -R --noconfirm nmap wireshark-qt" || { test_log "FAIL: uninstall missing pacman -R command: ${out}"; return 1; }
+    echo "${out}" | grep -q "Successfully uninstalled: 2" || { test_log "FAIL: uninstall summary missing count: ${out}"; return 1; }
+    echo "${out}" | grep -q "Dry run complete" || { test_log "FAIL: uninstall missing dry run complete message: ${out}"; return 1; }
+    test_log "PASS: --uninstall CLI dry-run verified"
+}
+
+test_uninstall_preset_dry_run() {
+    test_log "Testing --remove CLI flag with preset and dry-run..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro debian --preset top10 --remove --dry-run 2>&1)
+    echo "${out}" | grep -q "Selected preset 'top10'" || { test_log "FAIL: preset top10 not selected: ${out}"; return 1; }
+    echo "${out}" | grep -q "apt purge -y" || { test_log "FAIL: missing apt purge command: ${out}"; return 1; }
+    echo "${out}" | grep -q "Successfully uninstalled: 10" || { test_log "FAIL: preset uninstall count incorrect: ${out}"; return 1; }
+    test_log "PASS: --remove CLI flag with preset verified"
+}
+
+test_uninstall_help_option() {
+    test_log "Testing --uninstall is documented in help..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --help 2>&1)
+    echo "${out}" | grep -q -- "--uninstall" || { test_log "FAIL: --uninstall missing from help: ${out}"; return 1; }
+    echo "${out}" | grep -q -- "--remove" || { test_log "FAIL: --remove missing from help: ${out}"; return 1; }
+    test_log "PASS: --uninstall and --remove documented in help"
+}
+
+test_uninstall_print_summary_set_e() {
+    test_log "Testing print_uninstall_summary under set -euo pipefail..."
+    local out
+    if ! out=$(bash -c 'set -euo pipefail; source lib/utils.sh; source lib/installer.sh; DRY_RUN=false; TOOLS_TO_INSTALL=("tool1" "tool2" "tool3"); INSTALL_RESULTS=("REMOVED:tool1" "NOT_INSTALLED:tool2" "FAILED:tool3"); print_uninstall_summary 2>&1'); then
+        test_log "FAIL: print_uninstall_summary crashed under set -euo pipefail: ${out}"
+        return 1
+    fi
+    echo "${out}" | grep -q "Successfully uninstalled: 1" || { test_log "FAIL: print_uninstall_summary removed count missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "Not installed (skipped): 1" || { test_log "FAIL: print_uninstall_summary not installed count missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "Failed to uninstall: 1" || { test_log "FAIL: print_uninstall_summary failed count missing: ${out}"; return 1; }
+    test_log "PASS: print_uninstall_summary works cleanly under set -euo pipefail"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -526,6 +569,10 @@ run_tests() {
     test_resolve_dep_pkg || ((failed+=1))
     test_build_prerequisites || ((failed+=1))
     test_dependency_resolution_cli || ((failed+=1))
+    test_uninstall_cli_dry_run || ((failed+=1))
+    test_uninstall_preset_dry_run || ((failed+=1))
+    test_uninstall_help_option || ((failed+=1))
+    test_uninstall_print_summary_set_e || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then

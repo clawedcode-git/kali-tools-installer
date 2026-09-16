@@ -34,6 +34,17 @@ main() {
         fi
     fi
     
+    if [[ "${UNINSTALL:-false}" == "true" ]]; then
+        select_installation_scope
+        confirm_uninstallation
+        if [[ "${DRY_RUN}" != "true" ]]; then
+            check_root
+        fi
+        run_uninstallation
+        print_uninstall_summary
+        exit 0
+    fi
+    
     select_installation_scope
     confirm_installation
     if [[ "${DRY_RUN}" != "true" ]]; then

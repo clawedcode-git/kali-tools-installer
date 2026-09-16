@@ -11,6 +11,7 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 - **BlackArch repository integration**: Optional bootstrapping of BlackArch repositories on Arch/CachyOS (`--enable-blackarch`) providing access to thousands of precompiled security packages
 - **Build-from-source engine**: Automated fallback compilation for tools missing from native repos (supports Go, Python/pip, CMake, Make, and Git clones)
 - **Automated dependency resolution**: Resolves and pre-installs required runtime dependencies (`deps` column) and automatically provisions build prerequisites (`go`, `python3-pip`, `cmake`, `make`, `gcc`, `git`) before compiling source fallbacks
+- **Tool uninstallation & cleanup engine**: Cleanly remove installed tools, presets, or categories (`--uninstall` / `--remove`) via native package managers and purge `/usr/local/bin` and `/opt` source build files with safe `--dry-run` previews
 - **High-performance batch installation**: Bundles packages into single native package transactions with automatic individual-package fallback on failure
 - **In-memory package resolution**: $O(1)$ tool-to-distro package mapping lookup without repeated disk/awk overhead
 - **Interactive & non-interactive modes**: Run manually or automate in CI/CD
@@ -87,6 +88,12 @@ sudo ./install.sh --distro slackware --categories "password,wireless" --yes
 # Install tools while skipping automatic dependency pre-installation
 sudo ./install.sh --distro arch --tools nmap,wireshark --no-deps --yes
 
+# Uninstall Top 10 Kali tools on Arch / CachyOS
+sudo ./install.sh --distro arch --preset top10 --uninstall --yes
+
+# Preview uninstallation without root privileges
+./install.sh --distro debian --tools nmap,wireshark --remove --dry-run
+
 # Dry run (show what would be installed, unprivileged)
 ./install.sh --distro fedora --preset top10 --dry-run
 ```
@@ -135,6 +142,7 @@ When combined with `--dry-run`, the installer evaluates availability, plans the 
 | `--enable-blackarch` | Enable BlackArch repository on Arch/CachyOS |
 | `--no-update` | Skip package database update |
 | `--no-deps` | Skip automatic dependency pre-installation |
+| `--uninstall`, `--remove` | Uninstall targeted tools, presets, or categories |
 | `--log-file <path>` | Custom log location (default: /var/log/kali-tools-install.log, fallback /tmp) |
 | `--list-installed` | List installed Kali tools |
 | `--help`, `-h` | Show help |
@@ -295,7 +303,7 @@ kali-tools-installer/
 
 ### Running Tests
 
-The test suite contains 34 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, BlackArch repository bootstrapping, tool presets, dependency resolution, build recipes, and clean logging:
+The test suite contains 38 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, BlackArch repository bootstrapping, tool presets, dependency resolution, tool uninstallation/cleanup, build recipes, and clean logging:
 
 ```bash
 # Run the complete test suite

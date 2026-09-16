@@ -84,6 +84,10 @@ parse_args() {
                 INSTALL_DEPS=false
                 shift
                 ;;
+            --uninstall|--remove)
+                UNINSTALL=true
+                shift
+                ;;
             --log-file)
                 if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
                     error "Option $1 requires an argument"
@@ -118,7 +122,7 @@ parse_args() {
         esac
     done
     
-    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS
+    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL
 }
 
 print_help() {
@@ -135,6 +139,7 @@ Options:
     --dry-run               Show packages without installing
     --no-update             Skip package database update
     --no-deps               Skip automatic dependency installation
+    --uninstall, --remove   Uninstall targeted tools/preset/categories
     --enable-blackarch      Enable BlackArch repository on Arch/CachyOS
     --log-file <path>       Custom log location
     --list-installed        List installed Kali tools
@@ -329,6 +334,38 @@ confirm_installation() {
     if ! prompt_yes_no "Proceed with installation?"; then
         info "Installation cancelled by user"
         exit 0
+    fi
+}
+
+confirm_uninstallation() {
+    info "Targeting ${#TOOLS_TO_INSTALL[@]} tools for uninstallation..."
+    local installed_count=0
+    for tool in "${TOOLS_TO_INSTALL[@]}"; do
+        local pkg
+        pkg=$(get_distro_pkg_name "${tool}")
+        local status="not installed"
+        if [[ -n "${pkg}" ]] && is_pkg_installed "${pkg}"; then
+            status="installed (${pkg})"
+            ((installed_count+=1))
+        elif [[ -f "/usr/local/bin/${tool}" || -L "/usr/local/bin/${tool}" || -d "/opt/${tool}" ]]; then
+            status="installed (source)"
+            ((installed_count+=1))
+        fi
+        debug "  ${tool}: ${status}"
+    done
+    
+    info "${installed_count} of ${#TOOLS_TO_INSTALL[@]} targeted tools are currently installed."
+    
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        info "Planning uninstallation in dry-run mode..."
+        return 0
+    fi
+    
+    if [[ "${ASSUME_YES}" != "true" ]]; then
+        if ! prompt_yes_no "Are you sure you want to uninstall these tools?" "n"; then
+            info "Uninstallation cancelled by user"
+            exit 0
+        fi
     fi
 }
 
@@ -735,6 +772,189 @@ list_installed_tools() {
             echo "${tool} (${pkg})"
         fi
     done
+}
+
+uninstall_single_package() {
+    local tool="$1"
+    local pkg="$2"
+    
+    info "Removing ${tool} (${pkg})..."
+    local res=0
+    case "${PACKAGE_MANAGER}" in
+        pacman) run_cmd pacman -R --noconfirm "${pkg}" || res=$? ;;
+        apt) run_cmd apt purge -y "${pkg}" || res=$? ;;
+        dnf) run_cmd dnf remove -y "${pkg}" || res=$? ;;
+        zypper) run_cmd zypper remove -y "${pkg}" || res=$? ;;
+        apk) run_cmd apk del "${pkg}" || res=$? ;;
+        xbps) run_cmd xbps-remove -y "${pkg}" || res=$? ;;
+        emerge) run_cmd emerge -C "${pkg}" || res=$? ;;
+        slackpkg) run_cmd slackpkg remove "${pkg}" || res=$? ;;
+        *) res=1 ;;
+    esac
+    
+    if [[ ${res} -eq 0 ]]; then
+        success "Uninstalled: ${tool} (${pkg})"
+        INSTALL_RESULTS+=("REMOVED:${tool}")
+    else
+        error "Failed to uninstall: ${tool} (${pkg})"
+        INSTALL_RESULTS+=("FAILED:${tool}")
+    fi
+    return ${res}
+}
+
+remove_source_tool() {
+    local tool="$1"
+    info "Removing source files for ${tool}..."
+    
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        [[ -f "/usr/local/bin/${tool}" || -L "/usr/local/bin/${tool}" ]] && info "[DRY RUN] rm -f /usr/local/bin/${tool}"
+        [[ -d "/opt/${tool}" ]] && info "[DRY RUN] rm -rf /opt/${tool}"
+        INSTALL_RESULTS+=("REMOVED:${tool} (source)")
+        return 0
+    fi
+    
+    local removed=false
+    if [[ -f "/usr/local/bin/${tool}" || -L "/usr/local/bin/${tool}" ]]; then
+        rm -f "/usr/local/bin/${tool}" && removed=true
+    fi
+    if [[ -d "/opt/${tool}" ]]; then
+        rm -rf "/opt/${tool}" && removed=true
+    fi
+    if command -v pip3 &>/dev/null; then
+        pip3 uninstall -y "${tool}" 2>/dev/null || true
+    fi
+    
+    if [[ "${removed}" == "true" ]]; then
+        success "Removed source files for ${tool}"
+        INSTALL_RESULTS+=("REMOVED:${tool} (source)")
+    fi
+}
+
+run_uninstallation() {
+    info "Starting uninstallation of ${#TOOLS_TO_INSTALL[@]} tools..."
+    
+    local -a batch_pkgs=()
+    local -A seen_pkgs=()
+    local -a source_tools=()
+    local -a mapped_installed_tools=()
+    
+    for tool in "${TOOLS_TO_INSTALL[@]}"; do
+        local pkg
+        pkg=$(get_distro_pkg_name "${tool}")
+        local is_installed=false
+        
+        if [[ -n "${pkg}" ]]; then
+            if is_pkg_installed "${pkg}" || [[ "${DRY_RUN}" == "true" ]]; then
+                is_installed=true
+                mapped_installed_tools+=("${tool}")
+                if [[ -z "${seen_pkgs["${pkg}"]:-}" ]]; then
+                    seen_pkgs["${pkg}"]="1"
+                    batch_pkgs+=("${pkg}")
+                fi
+            fi
+        fi
+        
+        if [[ -f "/usr/local/bin/${tool}" || -L "/usr/local/bin/${tool}" || -d "/opt/${tool}" ]]; then
+            source_tools+=("${tool}")
+            is_installed=true
+        fi
+        
+        if [[ "${is_installed}" != "true" ]]; then
+            INSTALL_RESULTS+=("NOT_INSTALLED:${tool}")
+        fi
+    done
+    
+    # 1. Native package removal
+    if [[ ${#batch_pkgs[@]} -gt 0 ]]; then
+        info "Attempting removal of ${#batch_pkgs[@]} native packages..."
+        local batch_supported=true
+        local -a batch_cmd=()
+        case "${PACKAGE_MANAGER}" in
+            pacman) batch_cmd=(pacman -R --noconfirm "${batch_pkgs[@]}") ;;
+            apt) batch_cmd=(apt purge -y "${batch_pkgs[@]}") ;;
+            dnf) batch_cmd=(dnf remove -y "${batch_pkgs[@]}") ;;
+            zypper) batch_cmd=(zypper remove -y "${batch_pkgs[@]}") ;;
+            apk) batch_cmd=(apk del "${batch_pkgs[@]}") ;;
+            xbps) batch_cmd=(xbps-remove -y "${batch_pkgs[@]}") ;;
+            emerge) batch_cmd=(emerge -C "${batch_pkgs[@]}") ;;
+            *) batch_supported=false ;;
+        esac
+        
+        if [[ "${batch_supported}" == "true" ]]; then
+            local batch_res=0
+            run_cmd "${batch_cmd[@]}" || batch_res=$?
+            if [[ ${batch_res} -eq 0 ]]; then
+                for tool in "${mapped_installed_tools[@]}"; do
+                    local pkg
+                    pkg=$(get_distro_pkg_name "${tool}")
+                    success "Uninstalled: ${tool} (${pkg})"
+                    INSTALL_RESULTS+=("REMOVED:${tool}")
+                done
+            else
+                warn "Batch removal failed (exit code ${batch_res}). Falling back to individual package removal..."
+                for tool in "${mapped_installed_tools[@]}"; do
+                    local pkg
+                    pkg=$(get_distro_pkg_name "${tool}")
+                    uninstall_single_package "${tool}" "${pkg}" || true
+                done
+            fi
+        else
+            for tool in "${mapped_installed_tools[@]}"; do
+                local pkg
+                pkg=$(get_distro_pkg_name "${tool}")
+                uninstall_single_package "${tool}" "${pkg}" || true
+            done
+        fi
+    fi
+    
+    # 2. Source-installed cleanup
+    if [[ ${#source_tools[@]} -gt 0 ]]; then
+        info "Cleaning up ${#source_tools[@]} source-installed tools..."
+        for tool in "${source_tools[@]}"; do
+            remove_source_tool "${tool}"
+        done
+    fi
+}
+
+print_uninstall_summary() {
+    echo
+    info "=== Uninstallation Summary ==="
+    
+    local removed=0
+    local not_installed=0
+    local failed=0
+    
+    for result in "${INSTALL_RESULTS[@]}"; do
+        local status="${result%%:*}"
+        
+        case "${status}" in
+            REMOVED)
+                ((removed+=1))
+                ;;
+            NOT_INSTALLED)
+                ((not_installed+=1))
+                ;;
+            FAILED)
+                ((failed+=1))
+                ;;
+        esac
+    done
+    
+    info "Total tools evaluated: ${#TOOLS_TO_INSTALL[@]}"
+    if [[ ${removed} -gt 0 ]]; then
+        success "Successfully uninstalled: ${removed}"
+    fi
+    if [[ ${not_installed} -gt 0 ]]; then
+        info "Not installed (skipped): ${not_installed}"
+    fi
+    if [[ ${failed} -gt 0 ]]; then
+        error "Failed to uninstall: ${failed}"
+    fi
+    
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        echo
+        info "Dry run complete. No packages or files were removed."
+    fi
 }
 
 check_package_available() {
