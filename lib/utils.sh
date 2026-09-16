@@ -33,6 +33,9 @@ NO_TUI="${NO_TUI:-false}"
 TOOLS_TO_INSTALL=()
 INSTALL_RESULTS=()
 EXPORT_REPORT_FILE="${EXPORT_REPORT_FILE:-}"
+UPDATE_MODE="${UPDATE_MODE:-false}"
+DIFF_MODE="${DIFF_MODE:-false}"
+declare -gA TOOL_METHOD_OVERRIDES=([_init]="")
 
 log() {
     local level="$1"
@@ -221,6 +224,48 @@ load_config_file() {
                 ;;
             export_report|report_file)
                 EXPORT_REPORT_FILE="${val}"
+                ;;
+            update|auto_update)
+                if [[ "${val,,}" =~ ^(true|yes|1)$ ]]; then
+                    UPDATE_MODE=true
+                else
+                    UPDATE_MODE=false
+                fi
+                ;;
+            diff|diff_mode)
+                if [[ "${val,,}" =~ ^(true|yes|1)$ ]]; then
+                    DIFF_MODE=true
+                else
+                    DIFF_MODE=false
+                fi
+                ;;
+            method_override|override_method|method_overrides)
+                local -a pairs=()
+                IFS=',' read -ra pairs <<< "${val}"
+                for pair in "${pairs[@]}"; do
+                    pair="${pair#"${pair%%[![:space:]]*}"}"
+                    pair="${pair%"${pair##*[![:space:]]}"}"
+                    if [[ "${pair}" == *":"* ]]; then
+                        local t_name="${pair%%:*}"
+                        local m_name="${pair#*:}"
+                        t_name="${t_name#"${t_name%%[![:space:]]*}"}"
+                        t_name="${t_name%"${t_name##*[![:space:]]}"}"
+                        m_name="${m_name#"${m_name%%[![:space:]]*}"}"
+                        m_name="${m_name%"${m_name##*[![:space:]]}"}"
+                        [[ -n "${t_name}" && -n "${m_name}" ]] && TOOL_METHOD_OVERRIDES["${t_name}"]="${m_name}"
+                    fi
+                done
+                ;;
+            override.*|override_*)
+                local t_name=""
+                if [[ "${key}" == override.* ]]; then
+                    t_name="${key#override.}"
+                else
+                    t_name="${key#override_}"
+                fi
+                t_name="${t_name#"${t_name%%[![:space:]]*}"}"
+                t_name="${t_name%"${t_name##*[![:space:]]}"}"
+                [[ -n "${t_name}" ]] && TOOL_METHOD_OVERRIDES["${t_name}"]="${val}"
                 ;;
             *)
                 debug "Unknown configuration key: ${key}"

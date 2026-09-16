@@ -1,7 +1,7 @@
 # Kali Tools Installer
 
 [![CI](https://github.com/clawedcode-git/kali-tools-installer/actions/workflows/ci.yml/badge.svg)](https://github.com/clawedcode-git/kali-tools-installer/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/Tests-60%20Passing-brightgreen.svg)](#running-tests)
+[![Tests](https://img.shields.io/badge/Tests-68%20Passing-brightgreen.svg)](#running-tests)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Bash](https://img.shields.io/badge/Bash-4.0%2B-brightgreen.svg)](https://www.gnu.org/software/bash/)
 [![Platform](https://img.shields.io/badge/Platform-Linux-blue.svg)](#supported-distributions)
@@ -17,12 +17,16 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 - **Smart 5-tier installation fallback**: Intelligent resolution pipeline for Arch / CachyOS: `native pacman` → `AUR helpers` (`yay`/`paru`) → `pipx`/`pip3` (PyPI) → `BlackArch repo` → `source compilation`
 - **PyPI / pipx fallback tier**: Pure Python security tools (`dnsrecon`, `theHarvester`, `wfuzz`, `cupp`, `cmsmap`, `metagoofil`, `wifiphisher`) automatically install via `pipx` or PEP 668 compliant `pip3`
 - **Intelligent BlackArch repository auto-integration**: Tools missing from official/AUR repositories check BlackArch metadata with automatic setup prompts or seamless `--yes` bootstrapping
-- **Export telemetry & availability reports**: Export precheck availability matrices or installation results to structured `.json` or `.csv` files via `--export-report <path>`
+- **Installed tools dashboard**: Multi-column dashboard (`--list-installed`) displaying installed Kali tools, packaging methods (`pacman`, `aur`, `pipx`, `source`), version detection, and category statistics
+- **Scoped auto-update engine**: `--update` updates only installed Kali tools across native package managers, AUR helpers, pipx, and Git repositories with `--dry-run` simulation
+- **Scope diff mode**: `--diff` compares installed tools against presets, categories, or the full toolset in a visual status matrix with optional JSON/CSV telemetry exports
+- **Per-tool method overrides**: Pin installation methods for individual tools (`--method-override <tool:method,...>` or `method_override` in config) to force `native`, `aur`, `pip`, `blackarch`, or `source`
+- **Export telemetry & availability reports**: Export precheck availability matrices, diff comparisons, or installation results to structured `.json` or `.csv` files via `--export-report <path>`
 - **100% Arch Linux / CachyOS coverage**: Complete official repo, AUR, and BlackArch mappings across all 171 tools with native `pacman` and unprivileged `yay`/`paru` helper integration
 - **Build-from-source engine**: Automated fallback compilation for tools missing from native repos (supports Go, Python/pip, CMake, Make, and Git clones)
 - **Automated dependency resolution**: Resolves and pre-installs required runtime dependencies (`deps` column) and automatically provisions build prerequisites (`go`, `python3-pip`, `cmake`, `make`, `gcc`, `git`) before compiling source fallbacks
 - **Tool uninstallation & cleanup engine**: Cleanly remove installed tools, presets, or categories (`--uninstall` / `--remove`) via native package managers and purge `/usr/local/bin`, `/opt`, and `pipx` packages with safe `--dry-run` previews
-- **Persistent configuration file**: Store defaults (distribution, presets, categories, tools, BlackArch enablement, report exports, log locations) in `${XDG_CONFIG_HOME:-~/.config}/kali-installer/config`, `/etc/kali-installer/config`, or a custom path with `--config <path>`
+- **Persistent configuration file**: Store defaults (distribution, presets, categories, tools, method overrides, BlackArch enablement, report exports, log locations) in `${XDG_CONFIG_HOME:-~/.config}/kali-installer/config`, `/etc/kali-installer/config`, or a custom path with `--config <path>`
 - **ASCII art banner & retro BBS menus**: Dynamic typography banner with real-time environment dashboard and instant single-key BBS menus for interactive exploration, presets, categories, and settings
 - **Docker & CI automation**: Universal multi-distro `Dockerfile`, `docker-compose.yml`, local container test runner (`scripts/docker-test.sh`), and GitHub Actions CI matrix testing across 6 distributions on every push and PR
 - **High-performance batch installation**: Bundles packages into single native package transactions with automatic individual-package fallback on failure
@@ -161,7 +165,10 @@ When combined with `--dry-run`, the installer evaluates availability, plans the 
 | `--no-deps`, `--skip-deps` | Skip automatic dependency pre-installation |
 | `--uninstall`, `--remove` | Uninstall targeted tools, presets, or categories |
 | `--log-file <path>` | Custom log location (default: /var/log/kali-tools-install.log, fallback /tmp) |
-| `--list-installed` | List installed Kali tools |
+| `--list-installed` | List installed Kali tools with method, category, version, and statistics |
+| `--update` | Update all currently installed Kali tools across native, AUR, pipx, and Git source |
+| `--diff` | Compare installed tools against selected scope (preset, category, or all) |
+| `--method-override <tool:method,...>` | Override installation method for specific tools (e.g. `wfuzz:pip,nmap:source`) |
 | `--help`, `-h` | Show help |
 
 ## Tool Presets
@@ -469,7 +476,7 @@ kali-tools-installer/
 
 ### Running Tests
 
-The test suite contains 60 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, 5-tier installation fallback, pipx/pip PyPI resolution, BlackArch repository bootstrapping & auto-integration, JSON/CSV report exports, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, CI & Docker automation, ASCII banner & BBS menus, multiline array ingestion, tool list idempotence, empty target guards, build recipes, and clean logging:
+The test suite contains 68 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, 5-tier installation fallback, pipx/pip PyPI resolution, BlackArch repository bootstrapping & auto-integration, JSON/CSV report exports, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, CI & Docker automation, ASCII banner & BBS menus, multiline array ingestion, tool list idempotence, empty target guards, build recipes, installed tools dashboard, scoped auto-update, per-tool method overrides, diff mode matrix, and clean logging:
 
 ```bash
 

@@ -18,6 +18,8 @@ parse_args() {
     declare -g CONFIG_FILE="${CONFIG_FILE:-}"
     declare -g NO_TUI="${NO_TUI:-false}"
     declare -g EXPORT_REPORT_FILE="${EXPORT_REPORT_FILE:-}"
+    declare -g UPDATE_MODE="${UPDATE_MODE:-false}"
+    declare -g DIFF_MODE="${DIFF_MODE:-false}"
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -143,6 +145,51 @@ parse_args() {
                 export NO_TUI
                 shift
                 ;;
+            --update)
+                UPDATE_MODE=true
+                export UPDATE_MODE
+                shift
+                ;;
+            --diff)
+                DIFF_MODE=true
+                export DIFF_MODE
+                shift
+                ;;
+            --method-override|--method)
+                if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+                    error "Option $1 requires an argument (e.g. tool:method)"
+                    print_help
+                    exit 1
+                fi
+                local -a pairs=()
+                IFS=',' read -ra pairs <<< "$2"
+                for pair in "${pairs[@]}"; do
+                    if [[ "${pair}" == *":"* ]]; then
+                        local t_name="${pair%%:*}"
+                        local m_name="${pair#*:}"
+                        TOOL_METHOD_OVERRIDES["${t_name}"]="${m_name}"
+                    fi
+                done
+                shift 2
+                ;;
+            --method-override=*|--method=*)
+                local val="${1#*=}"
+                if [[ -z "${val}" ]]; then
+                    error "Option --method-override requires an argument (e.g. tool:method)"
+                    print_help
+                    exit 1
+                fi
+                local -a pairs=()
+                IFS=',' read -ra pairs <<< "${val}"
+                for pair in "${pairs[@]}"; do
+                    if [[ "${pair}" == *":"* ]]; then
+                        local t_name="${pair%%:*}"
+                        local m_name="${pair#*:}"
+                        TOOL_METHOD_OVERRIDES["${t_name}"]="${m_name}"
+                    fi
+                done
+                shift
+                ;;
             --export-report)
                 if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
                     error "Option $1 requires a file path argument"
@@ -175,7 +222,7 @@ parse_args() {
         esac
     done
     
-    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL CONFIG_FILE NO_TUI LIST_INSTALLED EXPORT_REPORT_FILE
+    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL CONFIG_FILE NO_TUI LIST_INSTALLED EXPORT_REPORT_FILE UPDATE_MODE DIFF_MODE
 }
 
 print_help() {
@@ -194,10 +241,13 @@ Options:
     --no-update             Skip package database update
     --no-deps               Skip automatic dependency installation
     --uninstall, --remove   Uninstall targeted tools/preset/categories
+    --update                Update all currently installed Kali tools
+    --diff                  Compare installed tools vs selected scope (preset/category/all)
+    --method-override <t:m> Override install method for specific tools (e.g. wfuzz:pip,nmap:source)
     --enable-blackarch      Enable BlackArch repository on Arch/CachyOS
     --no-tui, --plain       Disable ASCII banner styling and BBS interactive menus
     --log-file <path>       Custom log location
-    --list-installed        List installed Kali tools
+    --list-installed        Display dashboard of installed Kali tools with version & method
     --precheck              Check package availability (official/AUR/pipx/BlackArch)
     --export-report <path>  Export availability/install report to JSON or CSV file
     --help, -h              Show this help
@@ -217,7 +267,10 @@ Examples:
     sudo $(basename "$0") --distro slackware --yes              # Non-interactive Slackware
     sudo $(basename "$0") --precheck --distro arch              # Check package availability
     sudo $(basename "$0") --precheck --export-report /tmp/report.json  # Export precheck as JSON
-    sudo $(basename "$0") --precheck --export-report /tmp/report.csv   # Export precheck as CSV
+    sudo $(basename "$0") --list-installed                      # Installed tools dashboard
+    sudo $(basename "$0") --diff --preset top10                 # Compare top10 vs installed
+    sudo $(basename "$0") --update --dry-run                    # Preview updates for installed tools
+    sudo $(basename "$0") --tools wfuzz --method-override wfuzz:pip --yes # Pin method
     sudo $(basename "$0") --categories web,vuln --yes
     sudo $(basename "$0") --tools nmap,metasploit-framework --dry-run
 EOF
@@ -669,6 +722,11 @@ auto_enable_blackarch_if_needed() {
     return 1
 }
 
+get_tool_method_override() {
+    local tool="$1"
+    echo "${TOOL_METHOD_OVERRIDES["${tool}"]:-}"
+}
+
 # ---------------------------------------------------------------------------
 # install_package — 5-tier fallback: native → AUR → pipx → BlackArch → source
 # ---------------------------------------------------------------------------
@@ -679,6 +737,80 @@ install_package() {
     pkg_name=$(get_distro_pkg_name "${tool}")
     
     local result=0
+    
+    # ── Method Override Check ──────────────────────────────────────────────
+    local method_override
+    method_override=$(get_tool_method_override "${tool}")
+    if [[ -n "${method_override}" ]]; then
+        info "Applying method override for ${tool}: ${method_override}"
+        case "${method_override,,}" in
+            native|pacman|apt|dnf|zypper|apk|xbps|emerge|slackpkg)
+                if [[ -n "${pkg_name}" ]]; then
+                    local res=0
+                    case "${PACKAGE_MANAGER}" in
+                        pacman) run_cmd pacman -S --noconfirm --needed "${pkg_name}" || res=$? ;;
+                        apt) run_cmd apt install -y "${pkg_name}" || res=$? ;;
+                        dnf) run_cmd dnf install -y "${pkg_name}" || res=$? ;;
+                        zypper) run_cmd zypper install -y "${pkg_name}" || res=$? ;;
+                        slackpkg) run_cmd slackpkg install "${pkg_name}" || res=$? ;;
+                        emerge) run_cmd emerge "${pkg_name}" || res=$? ;;
+                        apk) run_cmd apk add "${pkg_name}" || res=$? ;;
+                        xbps) run_cmd xbps-install -y "${pkg_name}" || res=$? ;;
+                        *) res=1 ;;
+                    esac
+                    if [[ ${res} -eq 0 ]]; then
+                        success "Installed: ${tool} (${pkg_name}) [override: native]"
+                        INSTALL_RESULTS+=("SUCCESS:${tool} (native override)")
+                        return 0
+                    fi
+                fi
+                ;;
+            aur)
+                local aur_helper
+                aur_helper=$(get_aur_helper)
+                if [[ -n "${aur_helper}" && -n "${pkg_name}" ]]; then
+                    if run_aur_cmd "${aur_helper}" -S --noconfirm --needed "${pkg_name}"; then
+                        success "Installed: ${tool} (${pkg_name}) via ${aur_helper} [override: aur]"
+                        INSTALL_RESULTS+=("SUCCESS:${tool} (aur override)")
+                        return 0
+                    fi
+                fi
+                ;;
+            pip|pipx|pypi)
+                local pip_pkg
+                pip_pkg=$(get_tool_pip_pkg "${tool}")
+                [[ -z "${pip_pkg}" ]] && pip_pkg="${tool}"
+                if install_via_pipx "${tool}" "${pip_pkg}"; then
+                    return 0
+                fi
+                ;;
+            blackarch)
+                local ba_pkg
+                ba_pkg=$(get_tool_blackarch_pkg "${tool}")
+                [[ -z "${ba_pkg}" ]] && ba_pkg="${pkg_name}"
+                if [[ -n "${ba_pkg}" ]] && auto_enable_blackarch_if_needed; then
+                    if run_cmd pacman -S --noconfirm --needed "${ba_pkg}"; then
+                        success "Installed: ${tool} (${ba_pkg}) via BlackArch [override: blackarch]"
+                        INSTALL_RESULTS+=("SUCCESS:${tool} (blackarch override)")
+                        return 0
+                    fi
+                fi
+                ;;
+            source|git|go|cmake|make)
+                if build_from_source "${tool}"; then
+                    success "Installed from source: ${tool} [override: source]"
+                    INSTALL_RESULTS+=("SUCCESS:${tool} (source override)")
+                    return 0
+                fi
+                ;;
+            *)
+                warn "Unknown method override '${method_override}' for ${tool}"
+                ;;
+        esac
+        error "Failed: ${tool} (method override '${method_override}' failed)"
+        INSTALL_RESULTS+=("FAILED:${tool} (${method_override} override)")
+        return 1
+    fi
     
     # ── Tier 1: Native package manager ─────────────────────────────────────
     if [[ -n "${pkg_name}" ]]; then
@@ -920,8 +1052,15 @@ run_installation() {
     local -A seen_pkgs=()
     local -a unmapped_tools=()
     local -a mapped_tools=()
+    local -a overridden_tools=()
     
     for tool in "${TOOLS_TO_INSTALL[@]}"; do
+        local m_override
+        m_override=$(get_tool_method_override "${tool}")
+        if [[ -n "${m_override}" && "${m_override,,}" != "native" && "${m_override,,}" != "${PACKAGE_MANAGER}" ]]; then
+            overridden_tools+=("${tool}")
+            continue
+        fi
         local pkg
         pkg=$(get_distro_pkg_name "${tool}")
         if [[ -n "${pkg}" ]]; then
@@ -940,7 +1079,7 @@ run_installation() {
         INSTALL_RESULTS+=("SKIPPED:${tool} (no mapping)")
     done
     
-    if [[ ${#mapped_tools[@]} -eq 0 ]]; then
+    if [[ ${#mapped_tools[@]} -eq 0 && ${#overridden_tools[@]} -eq 0 ]]; then
         info "No packages available to install for ${DISTRO_FAMILY}."
         return 0
     fi
@@ -974,7 +1113,7 @@ run_installation() {
             ;;
     esac
     
-    if [[ "${batch_supported}" == "true" ]]; then
+    if [[ "${batch_supported}" == "true" && ${#batch_pkgs[@]} -gt 0 ]]; then
         info "Attempting batch installation of ${#batch_pkgs[@]} packages..."
         local batch_res=0
         run_cmd "${batch_cmd[@]}" || batch_res=$?
@@ -985,30 +1124,435 @@ run_installation() {
                 success "Installed: ${tool} (${pkg})"
                 INSTALL_RESULTS+=("SUCCESS:${tool}")
             done
+            for tool in "${overridden_tools[@]}"; do
+                install_package "${tool}" || true
+            done
             return 0
         fi
         warn "Batch installation failed (exit code ${batch_res}). Falling back to individual package installation..."
     fi
     
     local current=0
-    for tool in "${mapped_tools[@]}"; do
+    local -a all_to_install=("${mapped_tools[@]}" "${overridden_tools[@]}")
+    for tool in "${all_to_install[@]}"; do
         current=$((current + 1))
-        info "[${current}/${#mapped_tools[@]}] Installing ${tool}..."
+        info "[${current}/${#all_to_install[@]}] Installing ${tool}..."
         install_package "${tool}" || true
     done
 }
 
+declare -gA INSTALLED_PIPX_PACKAGES=([_init]="")
+declare -gA INSTALLED_PIP_PACKAGES=([_init]="")
+declare -g PIP_CACHE_INITIALIZED=false
+
+init_installed_pip_cache() {
+    [[ "${PIP_CACHE_INITIALIZED}" == "true" ]] && return 0
+    INSTALLED_PIPX_PACKAGES=()
+    INSTALLED_PIP_PACKAGES=()
+    
+    if command -v pipx &>/dev/null; then
+        local line pkg ver
+        while read -r line; do
+            [[ -z "${line}" ]] && continue
+            pkg="${line%% *}"
+            ver="${line#* }"
+            [[ -n "${pkg}" ]] && INSTALLED_PIPX_PACKAGES["${pkg,,}"]="${ver}"
+        done < <(pipx list --short 2>/dev/null || true)
+    elif command -v pip3 &>/dev/null; then
+        local line pkg ver
+        while IFS='==' read -r pkg ver; do
+            [[ -z "${pkg}" ]] && continue
+            INSTALLED_PIP_PACKAGES["${pkg,,}"]="${ver}"
+        done < <(pip3 list --format=freeze 2>/dev/null || true)
+    fi
+    
+    PIP_CACHE_INITIALIZED=true
+}
+
+get_installed_tool_info() {
+    local tool="$1"
+    local pkg_name
+    pkg_name=$(get_distro_pkg_name "${tool}")
+    local pip_pkg
+    pip_pkg=$(get_tool_pip_pkg "${tool}")
+    
+    local installed=false
+    local method="none"
+    local version="unknown"
+    
+    # 1. Native package check
+    if [[ -n "${pkg_name}" ]] && is_pkg_installed "${pkg_name}"; then
+        installed=true
+        method="${PACKAGE_MANAGER}"
+        
+        # Check if AUR package on Arch
+        if [[ "${PACKAGE_MANAGER}" == "pacman" ]]; then
+            if pacman -Qm "${pkg_name}" &>/dev/null; then
+                method="aur"
+            fi
+            version=$(pacman -Q "${pkg_name}" 2>/dev/null | awk '{print $2}' || true)
+        elif [[ "${PACKAGE_MANAGER}" == "apt" ]]; then
+            version=$(dpkg-query -W -f='${Version}' "${pkg_name}" 2>/dev/null || true)
+        elif [[ "${PACKAGE_MANAGER}" == "dnf" ]]; then
+            version=$(rpm -q --qf '%{VERSION}-%{RELEASE}' "${pkg_name}" 2>/dev/null || true)
+        fi
+        [[ -z "${version}" ]] && version="installed"
+    fi
+    
+    # 2. pip / pipx check (cached)
+    if [[ "${installed}" != "true" && -n "${pip_pkg}" ]]; then
+        init_installed_pip_cache
+        local p_lower="${pip_pkg,,}"
+        if [[ -n "${INSTALLED_PIPX_PACKAGES["${p_lower}"]:-}" ]]; then
+            installed=true
+            method="pipx"
+            version="${INSTALLED_PIPX_PACKAGES["${p_lower}"]}"
+        elif [[ -n "${INSTALLED_PIP_PACKAGES["${p_lower}"]:-}" ]]; then
+            installed=true
+            method="pip"
+            version="${INSTALLED_PIP_PACKAGES["${p_lower}"]}"
+        fi
+    fi
+    
+    # 3. Source build check (/usr/local/bin or /opt)
+    if [[ "${installed}" != "true" ]]; then
+        if [[ -f "/usr/local/bin/${tool}" || -L "/usr/local/bin/${tool}" || -d "/opt/${tool}" ]]; then
+            installed=true
+            method="source"
+            if command -v "${tool}" &>/dev/null; then
+                version=$("${tool}" --version 2>/dev/null | head -n 1 | grep -oE '[0-9]+(\.[0-9]+)+' | head -n 1 || true)
+            fi
+            [[ -z "${version}" ]] && version="source"
+        fi
+    fi
+    
+    echo "${installed}|${method}|${version}"
+}
+
 list_installed_tools() {
-    info "Checking installed Kali tools..."
-    local all_tools=()
+    info "Scanning installed Kali tools across all tiers..."
+    local -a all_tools=()
     mapfile -t all_tools < <(list_all_tools)
+    
+    local -a installed_entries=()
+    local count_native=0 count_aur=0 count_pip=0 count_source=0
+    
     for tool in "${all_tools[@]}"; do
-        local pkg
-        pkg=$(get_distro_pkg_name "${tool}")
-        if [[ -n "${pkg}" ]] && is_pkg_installed "${pkg}"; then
-            echo "${tool} (${pkg})"
+        local info_str
+        info_str=$(get_installed_tool_info "${tool}")
+        local is_inst method ver
+        IFS='|' read -r is_inst method ver <<< "${info_str}"
+        if [[ "${is_inst}" == "true" ]]; then
+            local cat
+            cat=$(get_tool_category "${tool}")
+            installed_entries+=("${tool}|${cat}|${method}|${ver}")
+            case "${method}" in
+                aur)    count_aur=$((count_aur + 1)) ;;
+                pip*)   count_pip=$((count_pip + 1)) ;;
+                source) count_source=$((count_source + 1)) ;;
+                *)      count_native=$((count_native + 1)) ;;
+            esac
         fi
     done
+    
+    echo
+    info "=== Installed Kali Tools Dashboard ==="
+    info "Distribution: ${DISTRO:-unknown} (${DISTRO_FAMILY:-unknown})"
+    echo
+    printf "  %-22s %-14s %-12s %-18s\n" "TOOL" "CATEGORY" "METHOD" "VERSION"
+    printf "  %-22s %-14s %-12s %-18s\n" "----------------------" "--------------" "------------" "------------------"
+    
+    if [[ ${#installed_entries[@]} -eq 0 ]]; then
+        info "  (No Kali tools currently installed)"
+    else
+        for entry in "${installed_entries[@]}"; do
+            local t_name t_cat t_method t_ver
+            IFS='|' read -r t_name t_cat t_method t_ver <<< "${entry}"
+            printf "  %-22s %-14s %-12s %-18s\n" "${t_name}" "${t_cat}" "${t_method}" "${t_ver}"
+        done
+    fi
+    echo
+    local total_all=${#all_tools[@]}
+    local total_inst=${#installed_entries[@]}
+    local pct=0
+    [[ ${total_all} -gt 0 ]] && pct=$((total_inst * 100 / total_all))
+    info "Total installed: ${total_inst} / ${total_all} (${pct}%)"
+    info "Breakdown: native: ${count_native} | aur: ${count_aur} | pip/pipx: ${count_pip} | source: ${count_source}"
+    
+    if [[ -n "${EXPORT_REPORT_FILE:-}" ]]; then
+        declare -ga INSTALL_RESULTS=()
+        for entry in "${installed_entries[@]}"; do
+            local t_name t_cat t_method t_ver
+            IFS='|' read -r t_name t_cat t_method t_ver <<< "${entry}"
+            INSTALL_RESULTS+=("INSTALLED:${t_name} (${t_method} ${t_ver})")
+        done
+        export_report
+    fi
+}
+
+run_update() {
+    info "=== Kali Tools Auto-Update Engine ==="
+    info "Distribution: ${DISTRO:-unknown} (${DISTRO_FAMILY:-unknown})"
+    info "Package Manager: ${PACKAGE_MANAGER:-unknown}"
+    echo
+    
+    local -a all_tools=()
+    mapfile -t all_tools < <(list_all_tools)
+    
+    local -a native_pkgs=()
+    local -a aur_pkgs=()
+    local -a pip_pkgs=()
+    local -a source_tools=()
+    local -a updated_tools=()
+    
+    for tool in "${all_tools[@]}"; do
+        local info_str
+        info_str=$(get_installed_tool_info "${tool}")
+        local is_inst method ver
+        IFS='|' read -r is_inst method ver <<< "${info_str}"
+        if [[ "${is_inst}" == "true" ]]; then
+            case "${method}" in
+                aur)
+                    local pkg
+                    pkg=$(get_distro_pkg_name "${tool}")
+                    [[ -n "${pkg}" ]] && aur_pkgs+=("${pkg}")
+                    updated_tools+=("${tool}")
+                    ;;
+                pip|pipx)
+                    local p_pkg
+                    p_pkg=$(get_tool_pip_pkg "${tool}")
+                    [[ -z "${p_pkg}" ]] && p_pkg="${tool}"
+                    pip_pkgs+=("${p_pkg}")
+                    updated_tools+=("${tool}")
+                    ;;
+                source)
+                    source_tools+=("${tool}")
+                    updated_tools+=("${tool}")
+                    ;;
+                *)
+                    local pkg
+                    pkg=$(get_distro_pkg_name "${tool}")
+                    [[ -n "${pkg}" ]] && native_pkgs+=("${pkg}")
+                    updated_tools+=("${tool}")
+                    ;;
+            esac
+        fi
+    done
+    
+    if [[ ${#updated_tools[@]} -eq 0 ]]; then
+        info "No installed Kali tools detected to update."
+        return 0
+    fi
+    
+    info "Found ${#updated_tools[@]} installed Kali tools to update."
+    
+    # Check root if not dry-run and updating native packages
+    if [[ "${DRY_RUN}" != "true" && ${#native_pkgs[@]} -gt 0 ]]; then
+        check_root
+    fi
+    
+    # 1. Update native packages
+    if [[ ${#native_pkgs[@]} -gt 0 ]]; then
+        info "Updating ${#native_pkgs[@]} native packages..."
+        local -a update_cmd=()
+        case "${PACKAGE_MANAGER}" in
+            pacman)   update_cmd=(pacman -S --noconfirm --needed "${native_pkgs[@]}") ;;
+            apt)      update_cmd=(apt install --only-upgrade -y "${native_pkgs[@]}") ;;
+            dnf)      update_cmd=(dnf upgrade -y "${native_pkgs[@]}") ;;
+            zypper)   update_cmd=(zypper update -y "${native_pkgs[@]}") ;;
+            apk)      update_cmd=(apk upgrade "${native_pkgs[@]}") ;;
+            xbps)     update_cmd=(xbps-install -u "${native_pkgs[@]}") ;;
+            emerge)   update_cmd=(emerge -u "${native_pkgs[@]}") ;;
+            slackpkg) update_cmd=(slackpkg upgrade "${native_pkgs[@]}") ;;
+            *)        update_cmd=() ;;
+        esac
+        
+        if [[ ${#update_cmd[@]} -gt 0 ]]; then
+            local u_res=0
+            run_cmd "${update_cmd[@]}" || u_res=$?
+            if [[ ${u_res} -eq 0 ]]; then
+                for p in "${native_pkgs[@]}"; do
+                    INSTALL_RESULTS+=("SUCCESS:${p} (native update)")
+                done
+            else
+                warn "Native package update failed (exit code ${u_res})"
+                for p in "${native_pkgs[@]}"; do
+                    INSTALL_RESULTS+=("FAILED:${p} (native update)")
+                done
+            fi
+        fi
+    fi
+    
+    # 2. Update AUR packages
+    if [[ ${#aur_pkgs[@]} -gt 0 && "${PACKAGE_MANAGER}" == "pacman" ]]; then
+        local aur_helper
+        aur_helper=$(get_aur_helper)
+        if [[ -n "${aur_helper}" ]]; then
+            info "Updating ${#aur_pkgs[@]} AUR packages via ${aur_helper}..."
+            local aur_res=0
+            run_aur_cmd "${aur_helper}" -S --noconfirm --needed "${aur_pkgs[@]}" || aur_res=$?
+            if [[ ${aur_res} -eq 0 ]]; then
+                for p in "${aur_pkgs[@]}"; do
+                    INSTALL_RESULTS+=("SUCCESS:${p} (aur update)")
+                done
+            else
+                warn "AUR update failed (exit code ${aur_res})"
+            fi
+        fi
+    fi
+    
+    # 3. Update pip/pipx packages
+    if [[ ${#pip_pkgs[@]} -gt 0 ]]; then
+        info "Updating ${#pip_pkgs[@]} pip/pipx packages..."
+        for p_pkg in "${pip_pkgs[@]}"; do
+            if [[ "${DRY_RUN}" == "true" ]]; then
+                if command -v pipx &>/dev/null; then
+                    info "[DRY RUN] pipx upgrade ${p_pkg}"
+                else
+                    info "[DRY RUN] pip3 install --upgrade ${p_pkg}"
+                fi
+                INSTALL_RESULTS+=("SUCCESS:${p_pkg} (pip update)")
+            else
+                local p_res=0
+                if command -v pipx &>/dev/null && pipx list 2>/dev/null | grep -q "package ${p_pkg}"; then
+                    pipx upgrade "${p_pkg}" 2>&1 | tee -a "${LOG_FILE}" || p_res=$?
+                elif command -v pip3 &>/dev/null; then
+                    local pip_flags=()
+                    if pip3 install --help 2>/dev/null | grep -q -- '--break-system-packages'; then
+                        pip_flags=(--break-system-packages)
+                    else
+                        pip_flags=(--user)
+                    fi
+                    pip3 install --upgrade "${pip_flags[@]}" "${p_pkg}" 2>&1 | tee -a "${LOG_FILE}" || p_res=$?
+                fi
+                if [[ ${p_res} -eq 0 ]]; then
+                    INSTALL_RESULTS+=("SUCCESS:${p_pkg} (pip update)")
+                else
+                    INSTALL_RESULTS+=("FAILED:${p_pkg} (pip update)")
+                fi
+            fi
+        done
+    fi
+    
+    # 4. Update Git source tools
+    if [[ ${#source_tools[@]} -gt 0 ]]; then
+        info "Updating ${#source_tools[@]} source-installed tools..."
+        for s_tool in "${source_tools[@]}"; do
+            if [[ -d "/opt/${s_tool}/.git" ]]; then
+                if [[ "${DRY_RUN}" == "true" ]]; then
+                    info "[DRY RUN] git -C /opt/${s_tool} pull"
+                    INSTALL_RESULTS+=("SUCCESS:${s_tool} (source update)")
+                else
+                    info "Pulling latest git changes for ${s_tool}..."
+                    if git -C "/opt/${s_tool}" pull 2>&1 | tee -a "${LOG_FILE}"; then
+                        INSTALL_RESULTS+=("SUCCESS:${s_tool} (source update)")
+                    else
+                        INSTALL_RESULTS+=("FAILED:${s_tool} (source update)")
+                    fi
+                fi
+            fi
+        done
+    fi
+    
+    print_summary
+}
+
+run_diff() {
+    info "=== Kali Tools Scope Diff Matrix ==="
+    info "Distribution: ${DISTRO:-unknown} (${DISTRO_FAMILY:-unknown})"
+    
+    # 1. Resolve scope
+    local -a scope_tools=()
+    local scope_name="All Tools"
+    if [[ -n "${SELECTED_PRESET:-}" ]]; then
+        scope_name="Preset '${SELECTED_PRESET}'"
+        read -ra scope_tools <<< "$(get_tools_in_preset "${SELECTED_PRESET}")"
+    elif [[ ${#SELECTED_CATEGORIES[@]} -gt 0 ]]; then
+        scope_name="Categories: ${SELECTED_CATEGORIES[*]}"
+        for c in "${SELECTED_CATEGORIES[@]}"; do
+            local -a c_tools=()
+            read -ra c_tools <<< "$(get_tools_in_category "${c}")"
+            scope_tools+=("${c_tools[@]}")
+        done
+    elif [[ ${#SELECTED_TOOLS[@]} -gt 0 ]]; then
+        scope_name="Specific Tools (${#SELECTED_TOOLS[@]})"
+        scope_tools=("${SELECTED_TOOLS[@]}")
+    else
+        mapfile -t scope_tools < <(list_all_tools)
+    fi
+    
+    info "Target Scope: ${scope_name} (${#scope_tools[@]} tools)"
+    echo
+    
+    printf "  %-8s %-22s %-14s %-28s\n" "STATUS" "TOOL" "CATEGORY" "METHOD / REPO DETAILS"
+    printf "  %-8s %-22s %-14s %-28s\n" "------" "----------------------" "--------------" "----------------------------"
+    
+    local count_installed=0
+    local count_missing=0
+    local -a diff_report_entries=()
+    
+    for tool in "${scope_tools[@]}"; do
+        local cat
+        cat=$(get_tool_category "${tool}")
+        local info_str
+        info_str=$(get_installed_tool_info "${tool}")
+        local is_inst method ver
+        IFS='|' read -r is_inst method ver <<< "${info_str}"
+        
+        local status_tag=""
+        local details=""
+        if [[ "${is_inst}" == "true" ]]; then
+            status_tag="[ + ]"
+            details="${method} (${ver})"
+            count_installed=$((count_installed + 1))
+            diff_report_entries+=("INSTALLED|${tool}|${cat}|${details}")
+        else
+            status_tag="[ - ]"
+            local pkg
+            pkg=$(get_distro_pkg_name "${tool}")
+            local pip_p
+            pip_p=$(get_tool_pip_pkg "${tool}")
+            local ba_p
+            ba_p=$(get_tool_blackarch_pkg "${tool}")
+            if [[ -n "${pkg}" ]]; then
+                details="not installed (${PACKAGE_MANAGER}: ${pkg})"
+            elif [[ -n "${pip_p}" ]]; then
+                details="not installed (pypi: ${pip_p})"
+            elif [[ -n "${ba_p}" ]]; then
+                details="not installed (blackarch: ${ba_p})"
+            else
+                details="not installed (unmapped)"
+            fi
+            count_missing=$((count_missing + 1))
+            diff_report_entries+=("MISSING|${tool}|${cat}|${details}")
+        fi
+        
+        printf "  %-8s %-22s %-14s %-28s\n" "${status_tag}" "${tool}" "${cat}" "${details}"
+    done
+    
+    local total=${#scope_tools[@]}
+    local inst_pct=0
+    local miss_pct=0
+    if [[ ${total} -gt 0 ]]; then
+        inst_pct=$((count_installed * 100 / total))
+        miss_pct=$((count_missing * 100 / total))
+    fi
+    
+    echo
+    info "=== Diff Summary ==="
+    success "Installed: ${count_installed} / ${total} (${inst_pct}%)"
+    if [[ ${count_missing} -gt 0 ]]; then
+        error "Missing:   ${count_missing} / ${total} (${miss_pct}%)"
+    fi
+    
+    if [[ -n "${EXPORT_REPORT_FILE:-}" ]]; then
+        declare -ga INSTALL_RESULTS=()
+        for d in "${diff_report_entries[@]}"; do
+            IFS='|' read -r st t_name t_cat t_det <<< "${d}"
+            INSTALL_RESULTS+=("${st}:${t_name} (${t_det})")
+        done
+        export_report
+    fi
 }
 
 uninstall_single_package() {
@@ -1776,7 +2320,7 @@ export_report() {
     
     # Determine source data: prefer PRECHECK_RESULTS, fall back to INSTALL_RESULTS
     local -a data_entries=()
-    if [[ ${#PRECHECK_RESULTS[@]} -gt 0 ]]; then
+    if [[ -n "${PRECHECK_RESULTS+x}" && ${#PRECHECK_RESULTS[@]} -gt 0 ]]; then
         data_entries=("${PRECHECK_RESULTS[@]}")
     elif [[ ${#INSTALL_RESULTS[@]} -gt 0 ]]; then
         # Convert INSTALL_RESULTS format to report format

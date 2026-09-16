@@ -852,6 +852,95 @@ test_remove_source_tool_pip_cleanup() {
     test_log "PASS: remove_source_tool pipx cleanup verified"
 }
 
+test_list_installed_dashboard() {
+    test_log "Testing --list-installed dashboard table formatting and metrics..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --list-installed 2>&1)
+    echo "${out}" | grep -q "Installed Kali Tools Dashboard" || { test_log "FAIL: dashboard header missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "TOOL.*CATEGORY.*METHOD.*VERSION" || { test_log "FAIL: dashboard table columns missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "Total installed:" || { test_log "FAIL: total installed metric missing: ${out}"; return 1; }
+    test_log "PASS: --list-installed dashboard verified"
+}
+
+test_update_dry_run() {
+    test_log "Testing --update in dry-run mode..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --update --dry-run 2>&1)
+    echo "${out}" | grep -q "Kali Tools Auto-Update Engine" || { test_log "FAIL: update engine header missing: ${out}"; return 1; }
+    test_log "PASS: --update dry-run verified"
+}
+
+test_method_override_cli_parsing() {
+    test_log "Testing --method-override CLI argument validation..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --method-override 2>&1 || true)
+    echo "${out}" | grep -q "Option --method-override requires an argument" || { test_log "FAIL: missing arg not caught: ${out}"; return 1; }
+    
+    out=$(bash "${PROJECT_ROOT}/install.sh" --method-override= 2>&1 || true)
+    echo "${out}" | grep -q "Option --method-override requires an argument" || { test_log "FAIL: empty equal arg not caught: ${out}"; return 1; }
+    test_log "PASS: --method-override CLI argument validation verified"
+}
+
+test_method_override_execution_pip() {
+    test_log "Testing method override execution for pip..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --tools wfuzz --method-override wfuzz:pip --dry-run --yes 2>&1)
+    echo "${out}" | grep -q "Applying method override for wfuzz: pip" || { test_log "FAIL: pip method override not applied: ${out}"; return 1; }
+    echo "${out}" | grep -q "pipx install wfuzz" || { test_log "FAIL: pipx command missing: ${out}"; return 1; }
+    test_log "PASS: method override execution for pip verified"
+}
+
+test_method_override_execution_source() {
+    test_log "Testing method override execution for source..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --tools gobuster --method-override gobuster:source --dry-run --yes 2>&1)
+    echo "${out}" | grep -q "Applying method override for gobuster: source" || { test_log "FAIL: source method override not applied: ${out}"; return 1; }
+    echo "${out}" | grep -q "Building gobuster from source" || { test_log "FAIL: source build message missing: ${out}"; return 1; }
+    test_log "PASS: method override execution for source verified"
+}
+
+test_diff_mode_preset() {
+    test_log "Testing --diff mode with preset..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --preset top10 --diff 2>&1)
+    echo "${out}" | grep -q "Kali Tools Scope Diff Matrix" || { test_log "FAIL: diff matrix header missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "Target Scope: Preset 'top10'" || { test_log "FAIL: preset scope missing in diff: ${out}"; return 1; }
+    echo "${out}" | grep -q "Diff Summary" || { test_log "FAIL: diff summary missing: ${out}"; return 1; }
+    test_log "PASS: --diff mode with preset verified"
+}
+
+test_diff_mode_export_report() {
+    test_log "Testing --diff report export to JSON..."
+    local report_file="/tmp/test_diff_export.json"
+    rm -f "${report_file}"
+    bash "${PROJECT_ROOT}/install.sh" --distro arch --preset top10 --diff --export-report "${report_file}" >/dev/null 2>&1
+    [[ -f "${report_file}" ]] || { test_log "FAIL: diff report file not created"; return 1; }
+    grep -q '"distro": "arch"' "${report_file}" || { test_log "FAIL: distro missing in diff report"; rm -f "${report_file}"; return 1; }
+    grep -q '"tools": \[' "${report_file}" || { test_log "FAIL: tools array missing in diff report"; rm -f "${report_file}"; return 1; }
+    grep -q '"name": "nmap"' "${report_file}" || { test_log "FAIL: nmap missing in diff report"; rm -f "${report_file}"; return 1; }
+    rm -f "${report_file}"
+    test_log "PASS: --diff report export to JSON verified"
+}
+
+test_config_method_override_parsing() {
+    test_log "Testing persistent config method override parsing..."
+    local test_conf="/tmp/test_kali_override.conf"
+    cat <<EOF > "${test_conf}"
+method_override = wfuzz:pip, gobuster:source
+override.nmap = native
+update = true
+diff = true
+EOF
+    load_config_file "${test_conf}"
+    [[ "${TOOL_METHOD_OVERRIDES["wfuzz"]:-}" == "pip" ]] || { test_log "FAIL: wfuzz override expected 'pip', got '${TOOL_METHOD_OVERRIDES["wfuzz"]:-}'"; rm -f "${test_conf}"; return 1; }
+    [[ "${TOOL_METHOD_OVERRIDES["gobuster"]:-}" == "source" ]] || { test_log "FAIL: gobuster override expected 'source', got '${TOOL_METHOD_OVERRIDES["gobuster"]:-}'"; rm -f "${test_conf}"; return 1; }
+    [[ "${TOOL_METHOD_OVERRIDES["nmap"]:-}" == "native" ]] || { test_log "FAIL: nmap override expected 'native', got '${TOOL_METHOD_OVERRIDES["nmap"]:-}'"; rm -f "${test_conf}"; return 1; }
+    [[ "${UPDATE_MODE}" == "true" ]] || { test_log "FAIL: UPDATE_MODE expected true"; rm -f "${test_conf}"; return 1; }
+    [[ "${DIFF_MODE}" == "true" ]] || { test_log "FAIL: DIFF_MODE expected true"; rm -f "${test_conf}"; return 1; }
+    rm -f "${test_conf}"
+    test_log "PASS: config method override parsing verified"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -918,6 +1007,14 @@ run_tests() {
     test_export_report_cli_options || ((failed+=1))
     test_auto_enable_blackarch_logic || ((failed+=1))
     test_remove_source_tool_pip_cleanup || ((failed+=1))
+    test_list_installed_dashboard || ((failed+=1))
+    test_update_dry_run || ((failed+=1))
+    test_method_override_cli_parsing || ((failed+=1))
+    test_method_override_execution_pip || ((failed+=1))
+    test_method_override_execution_source || ((failed+=1))
+    test_diff_mode_preset || ((failed+=1))
+    test_diff_mode_export_report || ((failed+=1))
+    test_config_method_override_parsing || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then

@@ -134,3 +134,29 @@
 # Default: empty (no report file exported)
 # export_report = /var/log/kali-tools-report.json
 
+# -----------------------------------------------------------------------------
+# Auto-Update Installed Tools
+# -----------------------------------------------------------------------------
+# Check for and apply updates to currently installed Kali tools across all tiers.
+# Options: true, false
+# Default: false
+# update = false
+
+# -----------------------------------------------------------------------------
+# Scope Diff Mode
+# -----------------------------------------------------------------------------
+# Display a comparison matrix between installed tools and the selected scope.
+# Options: true, false
+# Default: false
+# diff = false
+
+# -----------------------------------------------------------------------------
+# Per-Tool Method Overrides
+# -----------------------------------------------------------------------------
+# Pin specific installation methods for individual tools (native, aur, pip, blackarch, source).
+# Comma-separated pairs in 'tool:method' format or individual 'override.<tool>' keys.
+# Default: empty (automatic 5-tier fallback)
+# method_override = wfuzz:pip, gobuster:source
+# override.nmap = native
+
+

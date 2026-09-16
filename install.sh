@@ -7,6 +7,10 @@ export PROJECT_ROOT
 
 EXPORT_REPORT_FILE="${EXPORT_REPORT_FILE:-}"
 export EXPORT_REPORT_FILE
+UPDATE_MODE="${UPDATE_MODE:-false}"
+export UPDATE_MODE
+DIFF_MODE="${DIFF_MODE:-false}"
+export DIFF_MODE
 
 source "${PROJECT_ROOT}/lib/utils.sh"
 source "${PROJECT_ROOT}/lib/distro.sh"
@@ -36,6 +40,16 @@ main() {
     
     if [[ "${LIST_INSTALLED}" == "true" ]]; then
         list_installed_tools
+        exit 0
+    fi
+    
+    if [[ "${DIFF_MODE:-false}" == "true" ]]; then
+        run_diff
+        exit 0
+    fi
+    
+    if [[ "${UPDATE_MODE:-false}" == "true" ]]; then
+        run_update
         exit 0
     fi
     
