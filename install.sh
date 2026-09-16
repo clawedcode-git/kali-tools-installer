@@ -11,6 +11,7 @@ source "${PROJECT_ROOT}/lib/packages.sh"
 source "${PROJECT_ROOT}/lib/installer.sh"
 
 main() {
+    load_default_configs "$@"
     parse_args "$@"
     
     if [[ "${SHOW_HELP}" == "true" ]]; then

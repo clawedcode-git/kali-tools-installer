@@ -14,6 +14,9 @@ fi
 readonly KALI_TOOLS_LIST="${PROJECT_ROOT}/config/kali-tools.list"
 
 LOG_FILE="${LOG_FILE:-/var/log/kali-tools-install.log}"
+CONFIG_FILE="${CONFIG_FILE:-}"
+DEFAULT_CONFIG_SYSTEM="${DEFAULT_CONFIG_SYSTEM:-/etc/kali-installer/config}"
+DEFAULT_CONFIG_USER="${DEFAULT_CONFIG_USER:-${XDG_CONFIG_HOME:-${HOME:-}/.config}/kali-installer/config}"
 DISTRO=""
 DISTRO_FAMILY=""
 PACKAGE_MANAGER=""
@@ -90,6 +93,157 @@ prompt_select() {
     done
 }
 
+load_config_file() {
+    local config_file="$1"
+    [[ ! -f "${config_file}" ]] && return 0
+    
+    local line
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
+        
+        [[ -z "${line}" || "${line}" =~ ^# || "${line}" =~ ^\; ]] && continue
+        [[ "${line}" != *"="* ]] && continue
+        
+        local key="${line%%=*}"
+        local val="${line#*=}"
+        
+        key="${key#"${key%%[![:space:]]*}"}"
+        key="${key%"${key##*[![:space:]]}"}"
+        val="${val#"${val%%[![:space:]]*}"}"
+        val="${val%"${val##*[![:space:]]}"}"
+        
+        if [[ "${val}" =~ ^\"(.*)\"[[:space:]]*(#.*|\;.*)?$ ]]; then
+            val="${BASH_REMATCH[1]}"
+        elif [[ "${val}" =~ ^\'(.*)\'[[:space:]]*(#.*|\;.*)?$ ]]; then
+            val="${BASH_REMATCH[1]}"
+        else
+            val="${val%%#*}"
+            val="${val%%;*}"
+            val="${val%"${val##*[![:space:]]}"}"
+        fi
+        
+        local norm_key="${key,,}"
+        norm_key="${norm_key//-/_}"
+        
+        case "${norm_key}" in
+            distro|force_distro)
+                FORCE_DISTRO="${val,,}"
+                ;;
+            preset)
+                SELECTED_PRESET="${val,,}"
+                ;;
+            categories|category)
+                IFS=',' read -ra SELECTED_CATEGORIES <<< "$val"
+                for i in "${!SELECTED_CATEGORIES[@]}"; do
+                    local item="${SELECTED_CATEGORIES[$i]}"
+                    item="${item#"${item%%[![:space:]]*}"}"
+                    item="${item%"${item##*[![:space:]]}"}"
+                    SELECTED_CATEGORIES[$i]="${item}"
+                done
+                ;;
+            tools|tool)
+                IFS=',' read -ra SELECTED_TOOLS <<< "$val"
+                for i in "${!SELECTED_TOOLS[@]}"; do
+                    local item="${SELECTED_TOOLS[$i]}"
+                    item="${item#"${item%%[![:space:]]*}"}"
+                    item="${item%"${item##*[![:space:]]}"}"
+                    SELECTED_TOOLS[$i]="${item}"
+                done
+                ;;
+            enable_blackarch)
+                if [[ "${val,,}" =~ ^(true|yes|1)$ ]]; then
+                    ENABLE_BLACKARCH=true
+                else
+                    ENABLE_BLACKARCH=false
+                fi
+                ;;
+            no_update|skip_update)
+                if [[ "${val,,}" =~ ^(true|yes|1)$ ]]; then
+                    SKIP_UPDATE=true
+                else
+                    SKIP_UPDATE=false
+                fi
+                ;;
+            install_deps)
+                if [[ "${val,,}" =~ ^(false|no|0)$ ]]; then
+                    INSTALL_DEPS=false
+                else
+                    INSTALL_DEPS=true
+                fi
+                ;;
+            no_deps|skip_deps)
+                if [[ "${val,,}" =~ ^(true|yes|1)$ ]]; then
+                    INSTALL_DEPS=false
+                else
+                    INSTALL_DEPS=true
+                fi
+                ;;
+            log_file)
+                LOG_FILE="${val}"
+                ;;
+            yes|assume_yes)
+                if [[ "${val,,}" =~ ^(true|yes|1)$ ]]; then
+                    ASSUME_YES=true
+                else
+                    ASSUME_YES=false
+                fi
+                ;;
+            dry_run)
+                if [[ "${val,,}" =~ ^(true|yes|1)$ ]]; then
+                    DRY_RUN=true
+                else
+                    DRY_RUN=false
+                fi
+                ;;
+            *)
+                debug "Unknown configuration key: ${key}"
+                ;;
+        esac
+    done < "${config_file}"
+}
+
+load_default_configs() {
+    local custom_config=""
+    local prev=""
+    for arg in "$@"; do
+        if [[ "${prev}" == "--config" ]]; then
+            if [[ -n "${arg}" && "${arg}" != --* ]]; then
+                custom_config="${arg}"
+            fi
+            prev=""
+        elif [[ "${arg}" == --config=* ]]; then
+            custom_config="${arg#--config=}"
+        elif [[ "${arg}" == "--config" ]]; then
+            prev="--config"
+        fi
+    done
+    
+    # 1. System-wide configuration
+    local sys_config="${DEFAULT_CONFIG_SYSTEM:-/etc/kali-installer/config}"
+    if [[ -n "${sys_config}" && -f "${sys_config}" ]]; then
+        load_config_file "${sys_config}"
+        CONFIG_FILE="${sys_config}"
+    fi
+    
+    # 2. User configuration
+    local user_config="${DEFAULT_CONFIG_USER:-${XDG_CONFIG_HOME:-${HOME:-}/.config}/kali-installer/config}"
+    if [[ -n "${user_config}" && -f "${user_config}" ]]; then
+        load_config_file "${user_config}"
+        CONFIG_FILE="${user_config}"
+    fi
+    
+    # 3. Custom configuration passed via CLI
+    if [[ -n "${custom_config}" ]]; then
+        if [[ ! -f "${custom_config}" ]]; then
+            error "Configuration file not found: ${custom_config}"
+            exit 1
+        fi
+        load_config_file "${custom_config}"
+        CONFIG_FILE="${custom_config}"
+    fi
+}
+
 init_logging() {
     LOG_FILE="${LOG_FILE:-/var/log/kali-tools-install.log}"
     if ! mkdir -p "$(dirname "${LOG_FILE}")" 2>/dev/null || ! touch "${LOG_FILE}" 2>/dev/null; then
@@ -100,6 +254,9 @@ init_logging() {
     fi
     info "=== Kali Tools Installer Started ==="
     info "Log file: ${LOG_FILE}"
+    if [[ -n "${CONFIG_FILE:-}" ]]; then
+        info "Config file: ${CONFIG_FILE}"
+    fi
 }
 
 check_root() {

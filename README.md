@@ -12,6 +12,7 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 - **Build-from-source engine**: Automated fallback compilation for tools missing from native repos (supports Go, Python/pip, CMake, Make, and Git clones)
 - **Automated dependency resolution**: Resolves and pre-installs required runtime dependencies (`deps` column) and automatically provisions build prerequisites (`go`, `python3-pip`, `cmake`, `make`, `gcc`, `git`) before compiling source fallbacks
 - **Tool uninstallation & cleanup engine**: Cleanly remove installed tools, presets, or categories (`--uninstall` / `--remove`) via native package managers and purge `/usr/local/bin` and `/opt` source build files with safe `--dry-run` previews
+- **Persistent configuration file**: Store defaults (distribution, presets, categories, tools, BlackArch enablement, log locations) in `${XDG_CONFIG_HOME:-~/.config}/kali-installer/config`, `/etc/kali-installer/config`, or a custom path with `--config <path>`
 - **High-performance batch installation**: Bundles packages into single native package transactions with automatic individual-package fallback on failure
 - **In-memory package resolution**: $O(1)$ tool-to-distro package mapping lookup without repeated disk/awk overhead
 - **Interactive & non-interactive modes**: Run manually or automate in CI/CD
@@ -136,6 +137,7 @@ When combined with `--dry-run`, the installer evaluates availability, plans the 
 | `--preset <name>` | Install curated preset (top10, default, headless, web, wireless, passwords) |
 | `--categories <list>` | Comma-separated categories to install |
 | `--tools <list>` | Comma-separated specific tools to install |
+| `--config <path>` | Load custom configuration file |
 | `--yes`, `-y` | Skip confirmations |
 | `--dry-run` | Preview planned native package commands and source builds without installing |
 | `--precheck` | Check repository package availability and buildability (combines with `--dry-run`) |
@@ -190,6 +192,59 @@ Edit `config/kali-tools.list` to customize which tools are installed:
 nmap|info|Network exploration and security auditing|nmap|nmap|nmap|nmap|nmap|net-analyzer/nmap|nmap|nmap|python3-pip,curl
 metasploit-framework|exploit|Metasploit Framework|metasploit-framework|metasploit|metasploit-framework|metasploit-framework|metasploit-framework||||
 burpsuite|web|Web proxy and scanner|burpsuite||burpsuite|burpsuite|burpsuite||||
+```
+
+### Persistent Configuration File
+
+The installer supports persistent configuration files to save preferred defaults across executions without repeatedly typing command-line arguments.
+
+#### Search Precedence (Highest to Lowest)
+1. **Command-line flags**: `--distro`, `--preset`, `--tools`, `--yes`, etc.
+2. **Explicit configuration flag**: `--config <path>`
+3. **User-level configuration**: `${XDG_CONFIG_HOME:-~/.config}/kali-installer/config`
+4. **System-wide configuration**: `/etc/kali-installer/config`
+5. **Built-in defaults**
+
+#### Configuration Format & Options
+An example configuration file is provided in [`config/kali-installer.conf.example`](config/kali-installer.conf.example):
+
+```ini
+# Distribution override (arch, debian, fedora, slackware, opensuse, gentoo, alpine, void)
+distro = arch
+
+# Tool preset (top10, default, headless, web, wireless, passwords)
+preset = top10
+
+# Categories or tools
+# categories = web, vuln
+# tools = nmap, wireshark, aircrack-ng
+
+# BlackArch repository bootstrapping (Arch/CachyOS only)
+enable_blackarch = false
+
+# Skip package database sync
+no_update = false
+
+# Automatic dependency pre-installation
+install_deps = true
+
+# Custom log file location
+log_file = /var/log/kali-tools-install.log
+
+# Non-interactive confirmations
+yes = false
+
+# Dry-run execution preview
+dry_run = false
+```
+
+```bash
+# Copy template to user configuration directory
+mkdir -p ~/.config/kali-installer
+cp config/kali-installer.conf.example ~/.config/kali-installer/config
+
+# Run with custom configuration file
+sudo ./install.sh --config /path/to/custom.conf
 ```
 
 ### Adding New Distributions
@@ -303,7 +358,7 @@ kali-tools-installer/
 
 ### Running Tests
 
-The test suite contains 38 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, BlackArch repository bootstrapping, tool presets, dependency resolution, tool uninstallation/cleanup, build recipes, and clean logging:
+The test suite contains 42 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, BlackArch repository bootstrapping, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, build recipes, and clean logging:
 
 ```bash
 # Run the complete test suite

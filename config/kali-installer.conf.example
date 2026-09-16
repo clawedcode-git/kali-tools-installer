@@ -1,0 +1,103 @@
+# Kali Tools Installer Configuration File
+# =======================================
+#
+# Configuration Hierarchy (highest to lowest priority):
+# 1. Command-line flags (e.g. --distro, --preset, --yes)
+# 2. Command-line specified config: --config <path>
+# 3. User configuration: ${XDG_CONFIG_HOME:-~/.config}/kali-installer/config
+# 4. System configuration: /etc/kali-installer/config
+# 5. Built-in defaults
+#
+# Syntax:
+# - key = value
+# - Lines starting with '#' or ';' are comments.
+# - Whitespace around '=' is trimmed.
+# - Values can optionally be enclosed in single or double quotes.
+# - Keys are case-insensitive and hyphens/underscores are interchangeable.
+
+# -----------------------------------------------------------------------------
+# Distribution Override
+# -----------------------------------------------------------------------------
+# Force a specific distribution instead of auto-detecting via /etc/os-release.
+# Options: arch, debian, ubuntu, fedora, slackware, opensuse, gentoo, alpine, void
+# Default: auto-detect
+# distro = arch
+
+# -----------------------------------------------------------------------------
+# Tool Preset
+# -----------------------------------------------------------------------------
+# Select a curated preset of security tools to install.
+# Options:
+#   - top10: Top 10 Kali Linux tools (aircrack-ng, burpsuite, john, etc.)
+#   - default: Standard Kali desktop utility bundle (~25 tools)
+#   - headless: Headless CLI assessment tools (no GUI/X11 dependencies)
+#   - web: Web application testing tools
+#   - wireless: Wireless / 802.11 auditing suite
+#   - passwords: Password cracking and wordlist utilities
+# Default: empty (interactive scope prompt)
+# preset = top10
+
+# -----------------------------------------------------------------------------
+# Categories
+# -----------------------------------------------------------------------------
+# Comma-separated list of tool categories to install.
+# Options: info, vuln, web, password, wireless, reverse, exploit,
+#          sniffing, maintaining, forensics, reporting, hardware
+# Default: empty
+# categories = web, vuln
+
+# -----------------------------------------------------------------------------
+# Specific Tools
+# -----------------------------------------------------------------------------
+# Comma-separated list of individual tools to install.
+# Default: empty
+# tools = nmap, wireshark, aircrack-ng
+
+# -----------------------------------------------------------------------------
+# BlackArch Repository (Arch / CachyOS only)
+# -----------------------------------------------------------------------------
+# Automatically bootstrap the BlackArch Linux repository before package installation.
+# Options: true, false
+# Default: false
+# enable_blackarch = false
+
+# -----------------------------------------------------------------------------
+# Package Database Update
+# -----------------------------------------------------------------------------
+# Skip syncing and refreshing the distribution's package repositories.
+# Options: true, false
+# Default: false (updates repos by default)
+# no_update = false
+
+# -----------------------------------------------------------------------------
+# Dependency Resolution
+# -----------------------------------------------------------------------------
+# Automatically detect, resolve, and install prerequisite shared libraries,
+# runtimes (Python/Go/Ruby/Perl), and build compilers for selected tools.
+# Options: true, false
+# Default: true
+# install_deps = true
+
+# -----------------------------------------------------------------------------
+# Log File Location
+# -----------------------------------------------------------------------------
+# Path to the installation log file.
+# Default: /var/log/kali-tools-install.log (falls back to /tmp if not writable)
+# log_file = /var/log/kali-tools-install.log
+
+# -----------------------------------------------------------------------------
+# Non-Interactive / Assume Yes
+# -----------------------------------------------------------------------------
+# Automatically answer yes to all confirmation prompts.
+# Options: true, false
+# Default: false
+# yes = false
+
+# -----------------------------------------------------------------------------
+# Dry Run Mode
+# -----------------------------------------------------------------------------
+# Preview installation, package resolutions, and dependency plans without
+# executing package manager installation commands or building from source.
+# Options: true, false
+# Default: false
+# dry_run = false

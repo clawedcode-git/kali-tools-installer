@@ -529,6 +529,101 @@ test_uninstall_print_summary_set_e() {
     test_log "PASS: print_uninstall_summary works cleanly under set -euo pipefail"
 }
 
+test_config_file_loading() {
+    test_log "Testing persistent configuration file loading..."
+    local tmp_cfg="/tmp/test-kali-config-load.conf"
+    cat << 'EOF' > "${tmp_cfg}"
+distro = arch
+preset = top10
+enable_blackarch = true
+install_deps = false
+dry_run = true
+EOF
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --config "${tmp_cfg}" 2>&1)
+    rm -f "${tmp_cfg}"
+    echo "${out}" | grep -q "Config file: ${tmp_cfg}" || { test_log "FAIL: config file not logged: ${out}"; return 1; }
+    echo "${out}" | grep -q "Detected distribution: arch" || { test_log "FAIL: distro not set from config: ${out}"; return 1; }
+    echo "${out}" | grep -q "Selected preset 'top10'" || { test_log "FAIL: preset not set from config: ${out}"; return 1; }
+    echo "${out}" | grep -q "Dependency auto-installation skipped (--no-deps)" || { test_log "FAIL: install_deps=false not applied: ${out}"; return 1; }
+    echo "${out}" | grep -q "Dry run complete" || { test_log "FAIL: dry_run=true not applied: ${out}"; return 1; }
+    test_log "PASS: configuration file loading verified"
+}
+
+test_config_cli_override() {
+    test_log "Testing CLI argument override precedence over configuration file..."
+    local tmp_cfg="/tmp/test-kali-config-override.conf"
+    cat << 'EOF' > "${tmp_cfg}"
+distro = debian
+preset = top10
+install_deps = false
+dry_run = true
+EOF
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --config "${tmp_cfg}" --distro arch --preset web --dry-run 2>&1)
+    rm -f "${tmp_cfg}"
+    echo "${out}" | grep -q "Detected distribution: arch" || { test_log "FAIL: CLI --distro arch did not override config debian: ${out}"; return 1; }
+    echo "${out}" | grep -q "Selected preset 'web'" || { test_log "FAIL: CLI --preset web did not override config top10: ${out}"; return 1; }
+    test_log "PASS: CLI arguments take precedence over config file"
+}
+
+test_custom_config_flag() {
+    test_log "Testing --config flag error handling and equal syntax..."
+    local out_missing
+    if out_missing=$(bash "${PROJECT_ROOT}/install.sh" --config /tmp/nonexistent-config-file.conf 2>&1); then
+        test_log "FAIL: expected error for nonexistent config file: ${out_missing}"
+        return 1
+    fi
+    echo "${out_missing}" | grep -q "Configuration file not found" || { test_log "FAIL: missing error message: ${out_missing}"; return 1; }
+
+    local out_no_arg
+    if out_no_arg=$(bash "${PROJECT_ROOT}/install.sh" --config 2>&1); then
+        test_log "FAIL: expected error for --config without argument: ${out_no_arg}"
+        return 1
+    fi
+    echo "${out_no_arg}" | grep -q "Option --config requires an argument" || { test_log "FAIL: missing argument error message: ${out_no_arg}"; return 1; }
+
+    local tmp_cfg="/tmp/test-kali-config-equal.conf"
+    cat << 'EOF' > "${tmp_cfg}"
+distro = arch
+dry_run = true
+tools = nmap
+EOF
+    local out_eq
+    out_eq=$(bash "${PROJECT_ROOT}/install.sh" --config="${tmp_cfg}" 2>&1)
+    rm -f "${tmp_cfg}"
+    echo "${out_eq}" | grep -q "Selected tools: nmap" || { test_log "FAIL: --config=file failed to load: ${out_eq}"; return 1; }
+    test_log "PASS: --config flag error handling and --config=syntax verified"
+}
+
+test_config_safe_parsing() {
+    test_log "Testing safe key-value parsing, whitespace trimming, and quotes..."
+    local tmp_cfg="/tmp/test-kali-config-safe.conf"
+    cat << 'EOF' > "${tmp_cfg}"
+# Full line comment
+; Semicolon comment
+
+  distro   =   "arch"   # inline comment with quotes
+  preset   =   'top10'  ; inline semicolon comment
+  log_file =   /tmp/safe-kali-test.log
+  enable-blackarch = true
+  # Attempt malicious command injection (must remain literal string)
+  tools = `echo bad_command`
+EOF
+    (
+        load_config_file "${tmp_cfg}"
+        [[ "${FORCE_DISTRO}" == "arch" ]] || exit 1
+        [[ "${SELECTED_PRESET}" == "top10" ]] || exit 1
+        [[ "${LOG_FILE}" == "/tmp/safe-kali-test.log" ]] || exit 1
+        [[ "${ENABLE_BLACKARCH}" == "true" ]] || exit 1
+        [[ "${SELECTED_TOOLS[0]}" == "\`echo bad_command\`" ]] || exit 1
+    )
+    local ret=$?
+    rm -f "${tmp_cfg}"
+    [[ ${ret} -eq 0 ]] || { test_log "FAIL: safe parsing assertions failed"; return 1; }
+    test_log "PASS: safe key-value parsing, trimming, quotes, and injection safety verified"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -573,6 +668,10 @@ run_tests() {
     test_uninstall_preset_dry_run || ((failed+=1))
     test_uninstall_help_option || ((failed+=1))
     test_uninstall_print_summary_set_e || ((failed+=1))
+    test_config_file_loading || ((failed+=1))
+    test_config_cli_override || ((failed+=1))
+    test_custom_config_flag || ((failed+=1))
+    test_config_safe_parsing || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then

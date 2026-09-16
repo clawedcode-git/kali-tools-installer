@@ -2,29 +2,20 @@
 set -euo pipefail
 
 parse_args() {
-    declare -g FORCE_DISTRO
+    declare -g FORCE_DISTRO="${FORCE_DISTRO:-}"
     declare -ga SELECTED_CATEGORIES
     declare -ga SELECTED_TOOLS
-    declare -g DRY_RUN
-    declare -g ASSUME_YES
-    declare -g SKIP_UPDATE
-    declare -g LIST_INSTALLED
-    declare -g SHOW_HELP
-    declare -g PRECHECK
-    declare -g ENABLE_BLACKARCH
-    declare -g SELECTED_PRESET
-    
-    FORCE_DISTRO=""
-    SELECTED_CATEGORIES=()
-    SELECTED_TOOLS=()
-    SELECTED_PRESET=""
-    DRY_RUN=false
-    ASSUME_YES=false
-    SKIP_UPDATE=false
-    LIST_INSTALLED=false
-    SHOW_HELP=false
-    PRECHECK=false
-    ENABLE_BLACKARCH=false
+    declare -g DRY_RUN="${DRY_RUN:-false}"
+    declare -g ASSUME_YES="${ASSUME_YES:-false}"
+    declare -g SKIP_UPDATE="${SKIP_UPDATE:-false}"
+    declare -g LIST_INSTALLED=false
+    declare -g SHOW_HELP=false
+    declare -g PRECHECK=false
+    declare -g ENABLE_BLACKARCH="${ENABLE_BLACKARCH:-false}"
+    declare -g SELECTED_PRESET="${SELECTED_PRESET:-}"
+    declare -g INSTALL_DEPS="${INSTALL_DEPS:-true}"
+    declare -g UNINSTALL="${UNINSTALL:-false}"
+    declare -g CONFIG_FILE="${CONFIG_FILE:-}"
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -45,6 +36,8 @@ parse_args() {
                     exit 1
                 fi
                 IFS=',' read -ra SELECTED_CATEGORIES <<< "$2"
+                SELECTED_PRESET=""
+                SELECTED_TOOLS=()
                 shift 2
                 ;;
             --tools)
@@ -54,6 +47,8 @@ parse_args() {
                     exit 1
                 fi
                 IFS=',' read -ra SELECTED_TOOLS <<< "$2"
+                SELECTED_PRESET=""
+                SELECTED_CATEGORIES=()
                 shift 2
                 ;;
             --preset)
@@ -63,7 +58,36 @@ parse_args() {
                     exit 1
                 fi
                 SELECTED_PRESET="${2,,}"
+                SELECTED_CATEGORIES=()
+                SELECTED_TOOLS=()
                 shift 2
+                ;;
+            --config)
+                if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+                    error "Option $1 requires an argument"
+                    print_help
+                    exit 1
+                fi
+                if [[ ! -f "$2" ]]; then
+                    error "Configuration file not found: $2"
+                    exit 1
+                fi
+                CONFIG_FILE="$2"
+                shift 2
+                ;;
+            --config=*)
+                local cfg="${1#--config=}"
+                if [[ -z "${cfg}" ]]; then
+                    error "Option --config requires an argument"
+                    print_help
+                    exit 1
+                fi
+                if [[ ! -f "${cfg}" ]]; then
+                    error "Configuration file not found: ${cfg}"
+                    exit 1
+                fi
+                CONFIG_FILE="${cfg}"
+                shift
                 ;;
             --yes|-y)
                 ASSUME_YES=true
@@ -122,7 +146,7 @@ parse_args() {
         esac
     done
     
-    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL
+    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL CONFIG_FILE
 }
 
 print_help() {
@@ -135,6 +159,7 @@ Options:
     --preset <name>         Install curated preset (top10, default, headless, web, wireless, passwords)
     --categories <list>     Comma-separated categories to install
     --tools <list>          Comma-separated specific tools to install
+    --config <path>         Load custom configuration file
     --yes, -y               Skip confirmations
     --dry-run               Show packages without installing
     --no-update             Skip package database update
@@ -153,6 +178,7 @@ Examples:
     sudo $(basename "$0")                          # Interactive
     sudo $(basename "$0") --preset top10 --yes     # Install Top 10 Kali tools
     sudo $(basename "$0") --preset headless --yes  # Install headless CLI tools
+    sudo $(basename "$0") --config ~/.config/kali-installer/config # Custom config file
     sudo $(basename "$0") --distro arch --yes      # Non-interactive Arch
     sudo $(basename "$0") --distro arch --enable-blackarch # With BlackArch repos
     sudo $(basename "$0") --distro slackware --yes # Non-interactive Slackware
