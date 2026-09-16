@@ -46,7 +46,7 @@ def add_line(y, content):
 
 y = start_y
 # Prompt
-add_line(y, '<tspan fill="#3fb950" font-weight="bold">onyx@cachyos</tspan><tspan fill="#8b949e">:</tspan><tspan fill="#58a6ff">~/kali-tools-installer</tspan><tspan fill="#f0f6fc">$ sudo ./install.sh</tspan>')
+add_line(y, '<tspan fill="#3fb950" font-weight="bold">user@localhost</tspan><tspan fill="#8b949e">:</tspan><tspan fill="#58a6ff">~/kali-tools-installer</tspan><tspan fill="#f0f6fc">$ sudo ./install.sh</tspan>')
 y += int(line_height * 1.3)
 
 # ASCII Banner
