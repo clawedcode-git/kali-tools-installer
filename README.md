@@ -78,7 +78,7 @@ sudo ./install.sh
 Running without arguments launches the **BBS Retro Style Menu System** with an ASCII art banner and real-time environment dashboard:
 
 <p align="center">
-  <img src="assets/screenshot.svg?v=20260916-2" alt="Kali Tools Installer BBS Menu &amp; Concept A Banner" width="800"/>
+  <img src="assets/screenshot.svg?v=20260916-3" alt="Kali Tools Installer BBS Menu &amp; Concept A Banner" width="800"/>
 </p>
 
 - **Instant Keypress Navigation**: Press single hotkeys (`1`-`8`, `Q`) to navigate menus instantly without needing to press Enter.

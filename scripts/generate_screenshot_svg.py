@@ -3,11 +3,11 @@
 import html
 
 width = 820
-height = 840
+height = 805
 font_family = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace"
 font_size = 14
 line_height = 23
-start_y = 85
+start_y = 88
 
 svg = []
 svg.append(f"""<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" xmlns="http://www.w3.org/2000/svg">
@@ -35,7 +35,7 @@ svg.append(f"""<svg width="{width}" height="{height}" viewBox="0 0 {width} {heig
   <circle cx="96" cy="41" r="6.5" fill="#27c93f" stroke="#1aab29" stroke-width="0.5"/>
 
   <!-- Title Text -->
-  <text x="{width/2}" y="46" font-family="{font_family}" font-size="12.5" fill="#8b949e" text-anchor="middle" font-weight="500">kali-tools-installer — bash — 80x32</text>
+  <text x="{width/2}" y="46" font-family="{font_family}" font-size="12.5" fill="#8b949e" text-anchor="middle" font-weight="500">kali-tools-installer — 80x30</text>
 
   <!-- Terminal Content -->
   <g font-family="{font_family}" font-size="{font_size}" xml:space="preserve">
@@ -45,9 +45,6 @@ def add_line(y, content):
     svg.append(f'    <text x="50" y="{y}">{content}</text>')
 
 y = start_y
-# Prompt
-add_line(y, '<tspan fill="#38bdf8" font-weight="bold">#</tspan><tspan fill="#f0f6fc"> ./install.sh</tspan>')
-y += int(line_height * 1.3)
 
 # ASCII Banner
 banner_lines = [
