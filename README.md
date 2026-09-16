@@ -262,12 +262,17 @@ kali-tools-installer/
 
 ### Running Tests
 
+The test suite contains 25 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, BlackArch repository bootstrapping, build recipes, and clean logging:
+
 ```bash
-# Run verification tests
+# Run the complete test suite
 ./tests/test_install.sh
 
-# Test specific distribution logic
-bash -x lib/distro.sh
+# Test distribution detection with custom or mocked os-release
+OS_RELEASE_FILE="/path/to/os-release" ./tests/test_install.sh
+
+# Test specific distribution resolution
+bash -c 'source lib/utils.sh; source lib/distro.sh; FORCE_DISTRO=arch detect_distro'
 ```
 
 ### Contributing
