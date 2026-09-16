@@ -1,0 +1,57 @@
+<svg width="820" height="840" viewBox="0 0 820 840" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="shadow" x="-20" y="-20" width="860" height="880" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+    <linearGradient id="titlebar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#21262d"/>
+      <stop offset="100%" stop-color="#161b22"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Terminal Window Background -->
+  <rect x="25" y="20" width="770" height="800" rx="12" fill="#0d1117" stroke="#30363d" stroke-width="1.5" filter="url(#shadow)"/>
+
+  <!-- Title Bar -->
+  <rect x="25" y="20" width="770" height="42" rx="12" fill="url(#titlebar)"/>
+  <rect x="25" y="50" width="770" height="12" fill="#161b22"/>
+  <line x1="25" y1="62" x2="795" y2="62" stroke="#30363d" stroke-width="1"/>
+
+  <!-- Window Controls -->
+  <circle cx="52" cy="41" r="6.5" fill="#ff5f56" stroke="#e0443e" stroke-width="0.5"/>
+  <circle cx="74" cy="41" r="6.5" fill="#ffbd2e" stroke="#dea123" stroke-width="0.5"/>
+  <circle cx="96" cy="41" r="6.5" fill="#27c93f" stroke="#1aab29" stroke-width="0.5"/>
+
+  <!-- Title Text -->
+  <text x="410.0" y="46" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="12.5" fill="#8b949e" text-anchor="middle" font-weight="500">kali-tools-installer — bash — 80x32</text>
+
+  <!-- Terminal Content -->
+  <g font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" xml:space="preserve">
+
+    <text x="50" y="85"><tspan fill="#3fb950" font-weight="bold">onyx@cachyos</tspan><tspan fill="#8b949e">:</tspan><tspan fill="#58a6ff">~/kali-tools-installer</tspan><tspan fill="#f0f6fc">$ sudo ./install.sh</tspan></text>
+    <text x="50" y="114"><tspan fill="#38bdf8">             _  __     _ _   _____           _       </tspan></text>
+    <text x="50" y="137"><tspan fill="#38bdf8">            | |/ /__ _| (_) |_   _|__   ___ | |___   </tspan></text>
+    <text x="50" y="160"><tspan fill="#38bdf8">            | &#x27; // _` | | |   | |/ _ \ / _ \| / __|  </tspan></text>
+    <text x="50" y="183"><tspan fill="#38bdf8">            | . \ (_| | | |   | | (_) | (_) | \__ \  </tspan></text>
+    <text x="50" y="206"><tspan fill="#38bdf8">            |_|\_\__,_|_|_|   |_|\___/ \___/|_|___/  </tspan></text>
+    <text x="50" y="229"><tspan fill="#facc15">                   [ OFFENSIVE SECURITY TOOLSET ]    </tspan></text>
+    <text x="50" y="252"><tspan fill="#3b82f6">┌───────────────────────────────────────────────────────────────┐</tspan></text>
+    <text x="50" y="275"><tspan fill="#3b82f6">│</tspan> <tspan fill="#22c55e" font-weight="bold">OS:</tspan> <tspan fill="#f1f5f9">cachyos (arch) </tspan><tspan fill="#3b82f6">│</tspan> <tspan fill="#22c55e" font-weight="bold">PkgMgr:</tspan> <tspan fill="#f1f5f9">pacman     </tspan><tspan fill="#3b82f6">│</tspan> <tspan fill="#22c55e" font-weight="bold">BlackArch:</tspan> <tspan fill="#22c55e">Enabled  </tspan><tspan fill="#3b82f6">│</tspan></text>
+    <text x="50" y="298"><tspan fill="#3b82f6">│</tspan> <tspan fill="#22c55e" font-weight="bold">Tools:</tspan> <tspan fill="#f1f5f9">171 Total   </tspan><tspan fill="#3b82f6">│</tspan> <tspan fill="#22c55e" font-weight="bold">Presets:</tspan> <tspan fill="#f1f5f9">6 Curated </tspan><tspan fill="#3b82f6">│</tspan> <tspan fill="#22c55e" font-weight="bold">Deps:</tspan> <tspan fill="#22c55e">Auto          </tspan><tspan fill="#3b82f6">│</tspan></text>
+    <text x="50" y="321"><tspan fill="#3b82f6">└───────────────────────────────────────────────────────────────┘</tspan></text>
+    <text x="50" y="350"><tspan fill="#3b82f6">╔═══════════════════════════════════════════════════════════════╗</tspan></text>
+    <text x="50" y="373"><tspan fill="#3b82f6">║</tspan><tspan fill="#facc15" font-weight="bold">                      MAIN SELECTION MENU                      </tspan><tspan fill="#3b82f6">║</tspan></text>
+    <text x="50" y="396"><tspan fill="#3b82f6">╚═══════════════════════════════════════════════════════════════╝</tspan></text>
+    <text x="50" y="423">  <tspan fill="#22c55e" font-weight="bold">[1]</tspan><tspan fill="#f1f5f9"> ⚡ Quick Presets (top10, default, headless, web...)</tspan></text>
+    <text x="50" y="446">  <tspan fill="#22c55e" font-weight="bold">[2]</tspan><tspan fill="#f1f5f9"> 📦 Category Explorer (info, vuln, web, password...)</tspan></text>
+    <text x="50" y="469">  <tspan fill="#22c55e" font-weight="bold">[3]</tspan><tspan fill="#f1f5f9"> 🔍 Select Specific Tools (~171 Available)</tspan></text>
+    <text x="50" y="492">  <tspan fill="#22c55e" font-weight="bold">[4]</tspan><tspan fill="#f1f5f9"> 🚀 Install All 171 Kali Tools</tspan></text>
+    <text x="50" y="515">  <tspan fill="#22c55e" font-weight="bold">[5]</tspan><tspan fill="#f1f5f9"> 🔎 Repository Availability Precheck</tspan></text>
+    <text x="50" y="538">  <tspan fill="#22c55e" font-weight="bold">[6]</tspan><tspan fill="#f1f5f9"> 🗑️  Tool Uninstallation &amp; Cleanup Engine</tspan></text>
+    <text x="50" y="561">  <tspan fill="#22c55e" font-weight="bold">[7]</tspan><tspan fill="#f1f5f9"> 📋 View Currently Installed Tools</tspan></text>
+    <text x="50" y="584">  <tspan fill="#22c55e" font-weight="bold">[8]</tspan><tspan fill="#f1f5f9"> ⚙️  Toggle Options (Dry-Run: false, Deps: true)</tspan></text>
+    <text x="50" y="607">  <tspan fill="#f87171" font-weight="bold">[Q]</tspan><tspan fill="#f1f5f9"> 🚪 Exit Installer</tspan></text>
+    <text x="50" y="634"><tspan fill="#3b82f6">─────────────────────────────────────────────────────────────────</tspan></text>
+    <text x="50" y="661">  <tspan fill="#f1f5f9">Select an option [1-8, Q]: </tspan><tspan fill="#38bdf8">█</tspan></text>
+  </g>
+</svg>

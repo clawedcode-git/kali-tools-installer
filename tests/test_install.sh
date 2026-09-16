@@ -667,7 +667,26 @@ test_bbs_banner_rendering() {
     echo "${out}" | grep -q "PkgMgr: pacman" || { test_log "FAIL: banner missing PkgMgr: pacman: ${out}"; return 1; }
     echo "${out}" | grep -q "BlackArch: Enabled" || { test_log "FAIL: banner missing BlackArch: Enabled: ${out}"; return 1; }
     echo "${out}" | grep -q "Tools: 171 Total" || { test_log "FAIL: banner missing Tools count: ${out}"; return 1; }
-    test_log "PASS: Concept A ASCII banner rendering verified"
+    
+    local top_line r1_line r2_line bot_line
+    top_line=$(echo "${out}" | grep -E "^┌" || true)
+    r1_line=$(echo "${out}" | grep "OS:" || true)
+    r2_line=$(echo "${out}" | grep "Tools:" || true)
+    bot_line=$(echo "${out}" | grep -E "^└" || true)
+    [[ ${#top_line} -eq 65 ]] || { test_log "FAIL: top_line len ${#top_line} != 65"; return 1; }
+    [[ ${#r1_line} -eq 65 ]] || { test_log "FAIL: r1_line len ${#r1_line} != 65"; return 1; }
+    [[ ${#r2_line} -eq 65 ]] || { test_log "FAIL: r2_line len ${#r2_line} != 65"; return 1; }
+    [[ ${#bot_line} -eq 65 ]] || { test_log "FAIL: bot_line len ${#bot_line} != 65"; return 1; }
+    
+    local hdr hdr_top hdr_mid hdr_bot
+    hdr=$(bbs_box_header "MAIN SELECTION MENU")
+    hdr_top=$(echo "${hdr}" | grep -E "^╔" || true)
+    hdr_mid=$(echo "${hdr}" | grep "MAIN SELECTION MENU" || true)
+    hdr_bot=$(echo "${hdr}" | grep -E "^╚" || true)
+    [[ ${#hdr_top} -eq 65 ]] || { test_log "FAIL: hdr_top len ${#hdr_top} != 65"; return 1; }
+    [[ ${#hdr_mid} -eq 65 ]] || { test_log "FAIL: hdr_mid len ${#hdr_mid} != 65"; return 1; }
+    [[ ${#hdr_bot} -eq 65 ]] || { test_log "FAIL: hdr_bot len ${#hdr_bot} != 65"; return 1; }
+    test_log "PASS: Concept A ASCII banner and box alignment verified"
 }
 
 test_bbs_menu_non_interactive_fallback() {

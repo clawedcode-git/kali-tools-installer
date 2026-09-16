@@ -69,25 +69,25 @@ sudo ./install.sh
 
 Running without arguments launches the **BBS Retro Style Menu System** with an ASCII art banner and real-time environment dashboard:
 
-```bash
-sudo ./install.sh
-```
+<p align="center">
+  <img src="assets/screenshot.svg" alt="Kali Tools Installer BBS Menu &amp; Concept A Banner" width="800"/>
+</p>
 
 ```text
-  _  __     _ _   _____           _       
- | |/ /__ _| (_) |_   _|__   ___ | |___   
- | ' // _` | | |   | |/ _ \ / _ \| / __|  
- | . \ (_| | | |   | | (_) | (_) | \__ \  
- |_|\_\__,_|_|_|   |_|\___/ \___/|_|___/  
-        [ OFFENSIVE SECURITY TOOLSET ]    
-┌─────────────────────────────────────────────────────────────┐
-│ OS: CachyOS (arch)   │ PkgMgr: pacman  │ BlackArch: Enabled │
-│ Tools: 171 Total     │ Presets: 6 Curated │ Deps: Auto         │
-└─────────────────────────────────────────────────────────────┘
+              _  __     _ _   _____           _       
+             | |/ /__ _| (_) |_   _|__   ___ | |___   
+             | ' // _` | | |   | |/ _ \ / _ \| / __|  
+             | . \ (_| | | |   | | (_) | (_) | \__ \  
+             |_|\_\__,_|_|_|   |_|\___/ \___/|_|___/  
+                 [ OFFENSIVE SECURITY TOOLSET ]       
+┌───────────────────────────────────────────────────────────────┐
+│ OS: cachyos (arch) │ PkgMgr: pacman     │ BlackArch: Enabled  │
+│ Tools: 171 Total   │ Presets: 6 Curated │ Deps: Auto          │
+└───────────────────────────────────────────────────────────────┘
 
-╔═════════════════════════════════════════════════════════════╗
-║                    MAIN SELECTION MENU                    ║
-╚═════════════════════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════════════╗
+║                      MAIN SELECTION MENU                      ║
+╚═══════════════════════════════════════════════════════════════╝
 
   [1]  ⚡ Quick Presets (top10, default, headless, web...)
   [2]  📦 Category Explorer (info, vuln, web, password...)
@@ -96,8 +96,11 @@ sudo ./install.sh
   [5]  🔎 Repository Availability Precheck
   [6]  🗑️  Tool Uninstallation & Cleanup Engine
   [7]  📋 View Currently Installed Tools
-  [8]  ⚙️  Toggle Options (Dry-Run, Deps, BlackArch)
+  [8]  ⚙️  Toggle Options (Dry-Run: false, Deps: true)
   [Q]  🚪 Exit Installer
+
+─────────────────────────────────────────────────────────────────
+  Select an option [1-8, Q]: 
 ```
 
 - **Instant Keypress Navigation**: Press single hotkeys (`1`-`8`, `Q`) to navigate menus instantly without needing to press Enter.
@@ -456,6 +459,8 @@ kali-tools-installer/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml          # GitHub Actions multi-distro CI workflow
+├── assets/
+│   └── screenshot.svg      # TUI menu & ASCII banner preview screenshot
 ├── Dockerfile              # Universal multi-distro container definition
 ├── docker-compose.yml      # Multi-distro container environment configuration
 ├── install.sh              # Main entry point
@@ -469,7 +474,8 @@ kali-tools-installer/
 │   ├── kali-installer.conf.example # Example configuration file
 │   └── kali-tools.list     # Master tool definitions
 ├── scripts/
-│   └── docker-test.sh      # Local multi-distro test runner
+│   ├── docker-test.sh              # Local multi-distro test runner
+│   └── generate_screenshot_svg.py  # SVG screenshot generator
 ├── tests/
 │   └── test_install.sh     # Verification tests
 └── AGENTS.md               # Agent instructions

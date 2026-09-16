@@ -295,38 +295,48 @@ print_banner() {
         deps_badge="Skipped"
     fi
 
+    # Truncate field values to prevent layout distortion
+    local os_val="${os_badge:0:14}"
+    local pkg_val="${pkg_badge:0:10}"
+    local ba_val="${ba_badge:0:8}"
+    local tools_val="${tool_count} Total"
+    tools_val="${tools_val:0:11}"
+    local presets_val="6 Curated"
+    presets_val="${presets_val:0:9}"
+    local deps_val="${deps_badge:0:13}"
+
     if [[ -t 1 && "${NO_TUI:-false}" != "true" ]]; then
         cat << EOF
-${CYAN}  _  __     _ _   _____           _       ${NC}
-${CYAN} | |/ /__ _| (_) |_   _|__   ___ | |___   ${NC}
-${CYAN} | ' // _\` | | |   | |/ _ \ / _ \| / __|  ${NC}
-${CYAN} | . \ (_| | | |   | | (_) | (_) | \__ \  ${NC}
-${CYAN} |_|\_\__,_|_|_|   |_|\___/ \___/|_|___/  ${NC}
-       ${YELLOW}[ OFFENSIVE SECURITY TOOLSET ]${NC}    
-${BLUE}┌─────────────────────────────────────────────────────────────┐${NC}
+${CYAN}             _  __     _ _   _____           _       ${NC}
+${CYAN}            | |/ /__ _| (_) |_   _|__   ___ | |___   ${NC}
+${CYAN}            | ' // _\` | | |   | |/ _ \ / _ \| / __|  ${NC}
+${CYAN}            | . \ (_| | | |   | | (_) | (_) | \__ \  ${NC}
+${CYAN}            |_|\_\__,_|_|_|   |_|\___/ \___/|_|___/  ${NC}
+${YELLOW}                   [ OFFENSIVE SECURITY TOOLSET ]    ${NC}
+${BLUE}┌───────────────────────────────────────────────────────────────┐${NC}
 EOF
-        printf "${BLUE}│${NC} ${GREEN}OS:${NC} %-16s ${BLUE}│${NC} ${GREEN}PkgMgr:${NC} %-7s ${BLUE}│${NC} ${GREEN}BlackArch:${NC} %-7s ${BLUE}│${NC}\n" "${os_badge}" "${pkg_badge}" "${ba_badge}"
-        printf "${BLUE}│${NC} ${GREEN}Tools:${NC} %-13s ${BLUE}│${NC} ${GREEN}Presets:${NC} %-6s ${BLUE}│${NC} ${GREEN}Deps:${NC} %-12s ${BLUE}│${NC}\n" "${tool_count} Total" "6 Curated" "${deps_badge}"
-        echo -e "${BLUE}└─────────────────────────────────────────────────────────────┘${NC}"
+        printf "${BLUE}│${NC} ${GREEN}OS:${NC} %-14s ${BLUE}│${NC} ${GREEN}PkgMgr:${NC} %-10s ${BLUE}│${NC} ${GREEN}BlackArch:${NC} %-8s ${BLUE}│${NC}\n" "${os_val}" "${pkg_val}" "${ba_val}"
+        printf "${BLUE}│${NC} ${GREEN}Tools:${NC} %-11s ${BLUE}│${NC} ${GREEN}Presets:${NC} %-9s ${BLUE}│${NC} ${GREEN}Deps:${NC} %-13s ${BLUE}│${NC}\n" "${tools_val}" "${presets_val}" "${deps_val}"
+        echo -e "${BLUE}└───────────────────────────────────────────────────────────────┘${NC}"
     else
         cat << EOF
-  _  __     _ _   _____           _       
- | |/ /__ _| (_) |_   _|__   ___ | |___   
- | ' // _\` | | |   | |/ _ \ / _ \| / __|  
- | . \ (_| | | |   | | (_) | (_) | \__ \  
- |_|\_\__,_|_|_|   |_|\___/ \___/|_|___/  
-        [ OFFENSIVE SECURITY TOOLSET ]    
-┌─────────────────────────────────────────────────────────────┐
+             _  __     _ _   _____           _       
+            | |/ /__ _| (_) |_   _|__   ___ | |___   
+            | ' // _\` | | |   | |/ _ \ / _ \| / __|  
+            | . \ (_| | | |   | | (_) | (_) | \__ \  
+            |_|\_\__,_|_|_|   |_|\___/ \___/|_|___/  
+                   [ OFFENSIVE SECURITY TOOLSET ]    
+┌───────────────────────────────────────────────────────────────┐
 EOF
-        printf "│ OS: %-16s │ PkgMgr: %-7s │ BlackArch: %-7s │\n" "${os_badge}" "${pkg_badge}" "${ba_badge}"
-        printf "│ Tools: %-13s │ Presets: %-6s │ Deps: %-12s │\n" "${tool_count} Total" "6 Curated" "${deps_badge}"
-        echo "└─────────────────────────────────────────────────────────────┘"
+        printf "│ OS: %-14s │ PkgMgr: %-10s │ BlackArch: %-8s │\n" "${os_val}" "${pkg_val}" "${ba_val}"
+        printf "│ Tools: %-11s │ Presets: %-9s │ Deps: %-13s │\n" "${tools_val}" "${presets_val}" "${deps_val}"
+        echo "└───────────────────────────────────────────────────────────────┘"
     fi
 }
 
 bbs_box_header() {
     local title="$1"
-    local width=59
+    local width=63
     local title_len=${#title}
     local pad=$(( (width - title_len) / 2 ))
     (( pad < 0 )) && pad=0
@@ -338,13 +348,13 @@ bbs_box_header() {
     right_pad=$(printf '%*s' "${right_pad_len}" '')
     
     if [[ -t 1 && "${NO_TUI:-false}" != "true" ]]; then
-        echo -e "${BLUE}╔═════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${BLUE}╔═══════════════════════════════════════════════════════════════╗${NC}"
         echo -e "${BLUE}║${YELLOW}${left_pad}${title}${right_pad}${BLUE}║${NC}"
-        echo -e "${BLUE}╚═════════════════════════════════════════════════════════════╝${NC}"
+        echo -e "${BLUE}╚═══════════════════════════════════════════════════════════════╝${NC}"
     else
-        echo "╔═════════════════════════════════════════════════════════════╗"
+        echo "╔═══════════════════════════════════════════════════════════════╗"
         echo "║${left_pad}${title}${right_pad}║"
-        echo "╚═════════════════════════════════════════════════════════════╝"
+        echo "╚═══════════════════════════════════════════════════════════════╝"
     fi
 }
 

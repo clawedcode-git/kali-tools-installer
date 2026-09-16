@@ -18,7 +18,7 @@ bbs_main_menu() {
         echo -e "  ${GREEN}[8]${NC}  ⚙️  Toggle Options (Dry-Run: ${YELLOW}${DRY_RUN}${NC}, Deps: ${YELLOW}${INSTALL_DEPS}${NC})"
         echo -e "  ${RED}[Q]${NC}  🚪 Exit Installer"
         echo
-        echo -e "${BLUE}─────────────────────────────────────────────────────────────${NC}"
+        echo -e "${BLUE}─────────────────────────────────────────────────────────────────${NC}"
         
         local choice
         choice=$(bbs_read_key "  Select an option [1-8, Q]: ")
@@ -100,7 +100,7 @@ bbs_preset_menu() {
         echo -e "  ${GREEN}[6]${NC}  passwords  Password cracking & wordlists (8)"
         echo -e "  ${YELLOW}[B]${NC}  Back to Main Menu"
         echo
-        echo -e "${BLUE}─────────────────────────────────────────────────────────────${NC}"
+        echo -e "${BLUE}─────────────────────────────────────────────────────────────────${NC}"
         
         local choice
         choice=$(bbs_read_key "  Select preset [1-6, B]: ")
@@ -139,7 +139,7 @@ bbs_category_menu() {
         echo -e "  ${CYAN}[A]${NC} All Categories (~171 tools)"
         echo -e "  ${YELLOW}[B]${NC} Back to Main Menu"
         echo
-        echo -e "${BLUE}─────────────────────────────────────────────────────────────${NC}"
+        echo -e "${BLUE}─────────────────────────────────────────────────────────────────${NC}"
         
         local choice
         choice=$(bbs_read_key "  Select category [0-9, M, R, A, B]: ")
@@ -190,7 +190,7 @@ bbs_tools_menu() {
     echo -e "  ${CYAN}Example:${NC} nmap, wireshark, burpsuite, john"
     echo -e "  (Leave empty or type 'B' to return to Main Menu)"
     echo
-    echo -e "${BLUE}─────────────────────────────────────────────────────────────${NC}"
+    echo -e "${BLUE}─────────────────────────────────────────────────────────────────${NC}"
     
     local input
     read -rp "  Tools: " input
@@ -242,7 +242,7 @@ bbs_uninstall_menu() {
         echo -e "  ${GREEN}[3]${NC}  Uninstall Specific Tools"
         echo -e "  ${YELLOW}[B]${NC}  Back to Main Menu"
         echo
-        echo -e "${BLUE}─────────────────────────────────────────────────────────────${NC}"
+        echo -e "${BLUE}─────────────────────────────────────────────────────────────────${NC}"
         
         local choice
         choice=$(bbs_read_key "  Select option [1-3, B]: ")
@@ -286,7 +286,7 @@ bbs_toggle_options_menu() {
         echo -e "  ${GREEN}[4]${NC}  Toggle Skip Repo Update       (Currently: ${YELLOW}${SKIP_UPDATE}${NC})"
         echo -e "  ${YELLOW}[B]${NC}  Back to Main Menu"
         echo
-        echo -e "${BLUE}─────────────────────────────────────────────────────────────${NC}"
+        echo -e "${BLUE}─────────────────────────────────────────────────────────────────${NC}"
         
         local choice
         choice=$(bbs_read_key "  Select setting to toggle [1-4, B]: ")
@@ -350,7 +350,7 @@ bbs_confirm_dialog() {
     echo -e "  Dry-Run Preview     : ${YELLOW}${DRY_RUN}${NC}"
     echo -e "  Log Destination     : ${LOG_FILE}"
     echo
-    echo -e "${BLUE}─────────────────────────────────────────────────────────────${NC}"
+    echo -e "${BLUE}─────────────────────────────────────────────────────────────────${NC}"
     echo -e "  ${GREEN}[Y]${NC} Yes, proceed with ${action,,}"
     echo -e "  ${RED}[N]${NC} No, cancel and return"
     echo
