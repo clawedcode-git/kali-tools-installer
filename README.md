@@ -13,6 +13,7 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 - **Automated dependency resolution**: Resolves and pre-installs required runtime dependencies (`deps` column) and automatically provisions build prerequisites (`go`, `python3-pip`, `cmake`, `make`, `gcc`, `git`) before compiling source fallbacks
 - **Tool uninstallation & cleanup engine**: Cleanly remove installed tools, presets, or categories (`--uninstall` / `--remove`) via native package managers and purge `/usr/local/bin` and `/opt` source build files with safe `--dry-run` previews
 - **Persistent configuration file**: Store defaults (distribution, presets, categories, tools, BlackArch enablement, log locations) in `${XDG_CONFIG_HOME:-~/.config}/kali-installer/config`, `/etc/kali-installer/config`, or a custom path with `--config <path>`
+- **ASCII art banner & retro BBS menus**: Dynamic typography banner with real-time environment dashboard and instant single-key BBS menus for interactive exploration, presets, categories, and settings
 - **Docker & CI automation**: Universal multi-distro `Dockerfile`, `docker-compose.yml`, local container test runner (`scripts/docker-test.sh`), and GitHub Actions CI matrix testing across 6 distributions on every push and PR
 - **High-performance batch installation**: Bundles packages into single native package transactions with automatic individual-package fallback on failure
 - **In-memory package resolution**: $O(1)$ tool-to-distro package mapping lookup without repeated disk/awk overhead
@@ -60,14 +61,42 @@ sudo ./install.sh
 
 ### Interactive Mode (Default)
 
+Running without arguments launches the **BBS Retro Style Menu System** with an ASCII art banner and real-time environment dashboard:
+
 ```bash
 sudo ./install.sh
 ```
 
-Prompts for:
-- Distribution selection (auto-detected with confirmation)
-- Installation scope: all tools, categories, or custom selection
-- Confirmation before proceeding
+```text
+  _  __     _ _   _____           _       
+ | |/ /__ _| (_) |_   _|__   ___ | |___   
+ | ' // _` | | |   | |/ _ \ / _ \| / __|  
+ | . \ (_| | | |   | | (_) | (_) | \__ \  
+ |_|\_\__,_|_|_|   |_|\___/ \___/|_|___/  
+        [ OFFENSIVE SECURITY TOOLSET ]    
+┌─────────────────────────────────────────────────────────────┐
+│ OS: CachyOS (arch)   │ PkgMgr: pacman  │ BlackArch: Enabled │
+│ Tools: 171 Total     │ Presets: 6 Curated │ Deps: Auto         │
+└─────────────────────────────────────────────────────────────┘
+
+╔═════════════════════════════════════════════════════════════╗
+║                    MAIN SELECTION MENU                    ║
+╚═════════════════════════════════════════════════════════════╝
+
+  [1]  ⚡ Quick Presets (top10, default, headless, web...)
+  [2]  📦 Category Explorer (info, vuln, web, password...)
+  [3]  🔍 Select Specific Tools (~171 Available)
+  [4]  🚀 Install All 171 Kali Tools
+  [5]  🔎 Repository Availability Precheck
+  [6]  🗑️  Tool Uninstallation & Cleanup Engine
+  [7]  📋 View Currently Installed Tools
+  [8]  ⚙️  Toggle Options (Dry-Run, Deps, BlackArch)
+  [Q]  🚪 Exit Installer
+```
+
+- **Instant Keypress Navigation**: Press single hotkeys (`1`-`8`, `Q`) to navigate menus instantly without needing to press Enter.
+- **Dedicated Submenus**: Browse curated tool presets with tool counts, explore categories, select specific tools, or test repository availability.
+- **Non-Interactive & Plain Modes**: The menu system automatically degrades to standard streams when redirected, in CI/CD, when passing `--yes`, or via `--no-tui` / `--plain`.
 
 ### Non-Interactive Mode (Automation)
 
@@ -143,6 +172,7 @@ When combined with `--dry-run`, the installer evaluates availability, plans the 
 | `--dry-run` | Preview planned native package commands and source builds without installing |
 | `--precheck` | Check repository package availability and buildability (combines with `--dry-run`) |
 | `--enable-blackarch` | Enable BlackArch repository on Arch/CachyOS |
+| `--no-tui`, `--plain` | Disable ASCII banner styling and BBS interactive menus |
 | `--no-update` | Skip package database update |
 | `--no-deps` | Skip automatic dependency pre-installation |
 | `--uninstall`, `--remove` | Uninstall targeted tools, presets, or categories |
@@ -424,7 +454,8 @@ kali-tools-installer/
 │   ├── distro.sh           # Distribution detection
 │   ├── packages.sh         # Package name mappings
 │   ├── installer.sh        # Installation orchestration
-│   └── utils.sh            # Shared utilities (logging, colors, config)
+│   ├── menu.sh             # BBS retro style menu system
+│   └── utils.sh            # Shared utilities (logging, banner, config)
 ├── config/
 │   ├── kali-installer.conf.example # Example configuration file
 │   └── kali-tools.list     # Master tool definitions
@@ -437,7 +468,7 @@ kali-tools-installer/
 
 ### Running Tests
 
-The test suite contains 43 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, BlackArch repository bootstrapping, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, CI & Docker automation, build recipes, and clean logging:
+The test suite contains 46 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, BlackArch repository bootstrapping, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, CI & Docker automation, ASCII banner & BBS menus, build recipes, and clean logging:
 
 ```bash
 # Run the complete test suite

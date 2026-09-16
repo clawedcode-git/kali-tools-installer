@@ -9,6 +9,7 @@ source "${PROJECT_ROOT}/lib/utils.sh"
 source "${PROJECT_ROOT}/lib/distro.sh"
 source "${PROJECT_ROOT}/lib/packages.sh"
 source "${PROJECT_ROOT}/lib/installer.sh"
+source "${PROJECT_ROOT}/lib/menu.sh"
 
 main() {
     load_default_configs "$@"

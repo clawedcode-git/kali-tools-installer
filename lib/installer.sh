@@ -16,6 +16,7 @@ parse_args() {
     declare -g INSTALL_DEPS="${INSTALL_DEPS:-true}"
     declare -g UNINSTALL="${UNINSTALL:-false}"
     declare -g CONFIG_FILE="${CONFIG_FILE:-}"
+    declare -g NO_TUI="${NO_TUI:-false}"
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -134,6 +135,11 @@ parse_args() {
                 ENABLE_BLACKARCH=true
                 shift
                 ;;
+            --no-tui|--plain)
+                NO_TUI=true
+                export NO_TUI
+                shift
+                ;;
             --help|-h)
                 SHOW_HELP=true
                 shift
@@ -146,7 +152,7 @@ parse_args() {
         esac
     done
     
-    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL CONFIG_FILE
+    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL CONFIG_FILE NO_TUI
 }
 
 print_help() {
@@ -166,6 +172,7 @@ Options:
     --no-deps               Skip automatic dependency installation
     --uninstall, --remove   Uninstall targeted tools/preset/categories
     --enable-blackarch      Enable BlackArch repository on Arch/CachyOS
+    --no-tui, --plain       Disable ASCII banner styling and BBS interactive menus
     --log-file <path>       Custom log location
     --list-installed        List installed Kali tools
     --precheck              Check package availability in repos (no install)
@@ -217,6 +224,11 @@ select_installation_scope() {
             TOOLS_TO_INSTALL+=("${cat_tools[@]}")
         done
         info "Selected categories: ${SELECTED_CATEGORIES[*]}"
+        return
+    fi
+    
+    if [[ -t 0 && "${NO_TUI:-false}" != "true" && "${ASSUME_YES:-false}" != "true" ]]; then
+        bbs_main_menu
         return
     fi
     
@@ -357,7 +369,17 @@ confirm_installation() {
         fi
     fi
     
-    if ! prompt_yes_no "Proceed with installation?"; then
+    local proceed=false
+    if [[ -t 0 && "${NO_TUI:-false}" != "true" && "${ASSUME_YES:-false}" != "true" ]]; then
+        if bbs_confirm_dialog "Installation" "${#TOOLS_TO_INSTALL[@]} tools"; then
+            proceed=true
+        fi
+    else
+        if prompt_yes_no "Proceed with installation?"; then
+            proceed=true
+        fi
+    fi
+    if [[ "${proceed}" != "true" ]]; then
         info "Installation cancelled by user"
         exit 0
     fi
@@ -388,7 +410,17 @@ confirm_uninstallation() {
     fi
     
     if [[ "${ASSUME_YES}" != "true" ]]; then
-        if ! prompt_yes_no "Are you sure you want to uninstall these tools?" "n"; then
+        local proceed=false
+        if [[ -t 0 && "${NO_TUI:-false}" != "true" ]]; then
+            if bbs_confirm_dialog "Uninstallation" "${#TOOLS_TO_INSTALL[@]} targeted tools"; then
+                proceed=true
+            fi
+        else
+            if prompt_yes_no "Are you sure you want to uninstall these tools?" "n"; then
+                proceed=true
+            fi
+        fi
+        if [[ "${proceed}" != "true" ]]; then
             info "Uninstallation cancelled by user"
             exit 0
         fi

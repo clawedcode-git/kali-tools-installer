@@ -101,3 +101,11 @@
 # Options: true, false
 # Default: false
 # dry_run = false
+
+# -----------------------------------------------------------------------------
+# Terminal UI / Banner Styling
+# -----------------------------------------------------------------------------
+# Disable stylized ASCII art banner and BBS retro interactive menus.
+# Options: true, false
+# Default: false
+# no_tui = false

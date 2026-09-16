@@ -29,6 +29,7 @@ SKIP_UPDATE=false
 ENABLE_BLACKARCH="${ENABLE_BLACKARCH:-false}"
 INSTALL_DEPS="${INSTALL_DEPS:-true}"
 UNINSTALL="${UNINSTALL:-false}"
+NO_TUI="${NO_TUI:-false}"
 TOOLS_TO_INSTALL=()
 INSTALL_RESULTS=()
 
@@ -196,6 +197,13 @@ load_config_file() {
                     DRY_RUN=false
                 fi
                 ;;
+            no_tui|plain)
+                if [[ "${val,,}" =~ ^(true|yes|1)$ ]]; then
+                    NO_TUI=true
+                else
+                    NO_TUI=false
+                fi
+                ;;
             *)
                 debug "Unknown configuration key: ${key}"
                 ;;
@@ -267,12 +275,89 @@ check_root() {
 }
 
 print_banner() {
-    cat << 'EOF'
-╔══════════════════════════════════════════════════════════════╗
-║                  Kali Tools Installer                        ║
-║         Install all Kali Linux tools on any distro           ║
-╚══════════════════════════════════════════════════════════════╝
+    local os_badge="${DISTRO:-Detecting...}"
+    if [[ -n "${DISTRO_FAMILY:-}" && "${DISTRO}" != "${DISTRO_FAMILY}" ]]; then
+        os_badge="${DISTRO} (${DISTRO_FAMILY})"
+    elif [[ -n "${DISTRO:-}" ]]; then
+        os_badge="${DISTRO}"
+    fi
+    local pkg_badge="${PACKAGE_MANAGER:-auto}"
+    local ba_badge="Disabled"
+    if [[ "${ENABLE_BLACKARCH:-false}" == "true" ]]; then
+        ba_badge="Enabled"
+    fi
+    local tool_count=171
+    if [[ -n "${TOOL_CATEGORIES+x}" && ${#TOOL_CATEGORIES[@]} -gt 0 ]]; then
+        tool_count="${#TOOL_CATEGORIES[@]}"
+    fi
+    local deps_badge="Auto"
+    if [[ "${INSTALL_DEPS:-true}" != "true" ]]; then
+        deps_badge="Skipped"
+    fi
+
+    if [[ -t 1 && "${NO_TUI:-false}" != "true" ]]; then
+        cat << EOF
+${CYAN}  _  __     _ _   _____           _       ${NC}
+${CYAN} | |/ /__ _| (_) |_   _|__   ___ | |___   ${NC}
+${CYAN} | ' // _\` | | |   | |/ _ \ / _ \| / __|  ${NC}
+${CYAN} | . \ (_| | | |   | | (_) | (_) | \__ \  ${NC}
+${CYAN} |_|\_\__,_|_|_|   |_|\___/ \___/|_|___/  ${NC}
+       ${YELLOW}[ OFFENSIVE SECURITY TOOLSET ]${NC}    
+${BLUE}┌─────────────────────────────────────────────────────────────┐${NC}
 EOF
+        printf "${BLUE}│${NC} ${GREEN}OS:${NC} %-16s ${BLUE}│${NC} ${GREEN}PkgMgr:${NC} %-7s ${BLUE}│${NC} ${GREEN}BlackArch:${NC} %-7s ${BLUE}│${NC}\n" "${os_badge}" "${pkg_badge}" "${ba_badge}"
+        printf "${BLUE}│${NC} ${GREEN}Tools:${NC} %-13s ${BLUE}│${NC} ${GREEN}Presets:${NC} %-6s ${BLUE}│${NC} ${GREEN}Deps:${NC} %-12s ${BLUE}│${NC}\n" "${tool_count} Total" "6 Curated" "${deps_badge}"
+        echo -e "${BLUE}└─────────────────────────────────────────────────────────────┘${NC}"
+    else
+        cat << EOF
+  _  __     _ _   _____           _       
+ | |/ /__ _| (_) |_   _|__   ___ | |___   
+ | ' // _\` | | |   | |/ _ \ / _ \| / __|  
+ | . \ (_| | | |   | | (_) | (_) | \__ \  
+ |_|\_\__,_|_|_|   |_|\___/ \___/|_|___/  
+        [ OFFENSIVE SECURITY TOOLSET ]    
+┌─────────────────────────────────────────────────────────────┐
+EOF
+        printf "│ OS: %-16s │ PkgMgr: %-7s │ BlackArch: %-7s │\n" "${os_badge}" "${pkg_badge}" "${ba_badge}"
+        printf "│ Tools: %-13s │ Presets: %-6s │ Deps: %-12s │\n" "${tool_count} Total" "6 Curated" "${deps_badge}"
+        echo "└─────────────────────────────────────────────────────────────┘"
+    fi
+}
+
+bbs_box_header() {
+    local title="$1"
+    local width=59
+    local title_len=${#title}
+    local pad=$(( (width - title_len) / 2 ))
+    (( pad < 0 )) && pad=0
+    local left_pad
+    left_pad=$(printf '%*s' "${pad}" '')
+    local right_pad_len=$(( width - title_len - pad ))
+    (( right_pad_len < 0 )) && right_pad_len=0
+    local right_pad
+    right_pad=$(printf '%*s' "${right_pad_len}" '')
+    
+    if [[ -t 1 && "${NO_TUI:-false}" != "true" ]]; then
+        echo -e "${BLUE}╔═════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${BLUE}║${YELLOW}${left_pad}${title}${right_pad}${BLUE}║${NC}"
+        echo -e "${BLUE}╚═════════════════════════════════════════════════════════════╝${NC}"
+    else
+        echo "╔═════════════════════════════════════════════════════════════╗"
+        echo "║${left_pad}${title}${right_pad}║"
+        echo "╚═════════════════════════════════════════════════════════════╝"
+    fi
+}
+
+bbs_read_key() {
+    local prompt="${1:-  Choice: }"
+    local key=""
+    if [[ -t 0 ]]; then
+        read -rsp "${prompt}" -n 1 key
+        echo "${key}"
+    else
+        read -rp "${prompt}" key || true
+        echo "${key}"
+    fi
 }
 
 print_summary() {

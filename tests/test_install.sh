@@ -658,6 +658,40 @@ test_ci_and_docker_automation() {
     test_log "PASS: CI workflow, Dockerfile, compose, and runner scripts verified"
 }
 
+test_bbs_banner_rendering() {
+    test_log "Testing Concept A ASCII banner rendering..."
+    local out
+    out=$(bash -c "source '${PROJECT_ROOT}/lib/utils.sh'; source '${PROJECT_ROOT}/lib/packages.sh'; DISTRO='cachyos'; DISTRO_FAMILY='arch'; PACKAGE_MANAGER='pacman'; ENABLE_BLACKARCH='true'; print_banner" 2>&1)
+    echo "${out}" | grep -q "OFFENSIVE SECURITY TOOLSET" || { test_log "FAIL: banner missing OFFENSIVE SECURITY TOOLSET: ${out}"; return 1; }
+    echo "${out}" | grep -q "OS: cachyos" || { test_log "FAIL: banner missing OS: cachyos: ${out}"; return 1; }
+    echo "${out}" | grep -q "PkgMgr: pacman" || { test_log "FAIL: banner missing PkgMgr: pacman: ${out}"; return 1; }
+    echo "${out}" | grep -q "BlackArch: Enabled" || { test_log "FAIL: banner missing BlackArch: Enabled: ${out}"; return 1; }
+    echo "${out}" | grep -q "Tools: 171 Total" || { test_log "FAIL: banner missing Tools count: ${out}"; return 1; }
+    test_log "PASS: Concept A ASCII banner rendering verified"
+}
+
+test_bbs_menu_non_interactive_fallback() {
+    test_log "Testing BBS menu non-interactive fallback when stdin is piped..."
+    local out
+    out=$(bash -c "source '${PROJECT_ROOT}/lib/utils.sh'; source '${PROJECT_ROOT}/lib/packages.sh'; source '${PROJECT_ROOT}/lib/menu.sh'; echo 'q' | bbs_main_menu" 2>&1)
+    echo "${out}" | grep -q "MAIN SELECTION MENU" || { test_log "FAIL: bbs_main_menu did not render menu: ${out}"; return 1; }
+    echo "${out}" | grep -q "Exiting Kali Tools Installer" || { test_log "FAIL: bbs_main_menu quit option failed: ${out}"; return 1; }
+    test_log "PASS: BBS menu non-interactive fallback verified"
+}
+
+test_no_tui_flag() {
+    test_log "Testing --no-tui and --plain CLI flags..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --help 2>&1)
+    echo "${out}" | grep -q -- "--no-tui" || { test_log "FAIL: --no-tui missing from help: ${out}"; return 1; }
+    echo "${out}" | grep -q -- "--plain" || { test_log "FAIL: --plain missing from help: ${out}"; return 1; }
+    
+    local out_notui
+    out_notui=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --preset top10 --no-tui --dry-run 2>&1)
+    echo "${out_notui}" | grep -q "Selected preset 'top10'" || { test_log "FAIL: --no-tui run failed: ${out_notui}"; return 1; }
+    test_log "PASS: --no-tui and --plain flags verified"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -707,6 +741,9 @@ run_tests() {
     test_custom_config_flag || ((failed+=1))
     test_config_safe_parsing || ((failed+=1))
     test_ci_and_docker_automation || ((failed+=1))
+    test_bbs_banner_rendering || ((failed+=1))
+    test_bbs_menu_non_interactive_fallback || ((failed+=1))
+    test_no_tui_flag || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then
