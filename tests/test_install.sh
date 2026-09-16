@@ -124,6 +124,34 @@ test_get_distro_pkg_name() {
     test_log "PASS: nmap -> ${pkg} on ${DISTRO_FAMILY}"
 }
 
+test_in_memory_package_cache() {
+    test_log "Testing in-memory package cache population..."
+    [[ ${#TOOL_PKG_MAPPINGS[@]} -gt 200 ]] || { test_log "FAIL: Too few mappings in TOOL_PKG_MAPPINGS: ${#TOOL_PKG_MAPPINGS[@]}"; return 1; }
+    [[ -n "${TOOL_PKG_MAPPINGS["debian:nmap"]:-}" ]] || { test_log "FAIL: debian:nmap not found in cache"; return 1; }
+    [[ -n "${TOOL_PKG_MAPPINGS["arch:nmap"]:-}" ]] || { test_log "FAIL: arch:nmap not found in cache"; return 1; }
+    [[ -n "${TOOL_PKG_MAPPINGS["fedora:nmap"]:-}" ]] || { test_log "FAIL: fedora:nmap not found in cache"; return 1; }
+    test_log "PASS: TOOL_PKG_MAPPINGS populated with ${#TOOL_PKG_MAPPINGS[@]} mappings"
+}
+
+test_multiple_distro_mappings() {
+    test_log "Testing get_distro_pkg_name resolution across multiple distros..."
+    local old_family="${DISTRO_FAMILY}"
+    
+    DISTRO_FAMILY="debian"
+    local deb_pkg
+    deb_pkg=$(get_distro_pkg_name "wireshark")
+    
+    DISTRO_FAMILY="arch"
+    local arch_pkg
+    arch_pkg=$(get_distro_pkg_name "wireshark")
+    
+    DISTRO_FAMILY="${old_family}"
+    
+    [[ "${deb_pkg}" == "wireshark" ]] || { test_log "FAIL: wireshark on debian expected 'wireshark', got '${deb_pkg}'"; return 1; }
+    [[ "${arch_pkg}" == "wireshark-qt" ]] || { test_log "FAIL: wireshark on arch expected 'wireshark-qt', got '${arch_pkg}'"; return 1; }
+    test_log "PASS: multi-distro lookup verified (debian=${deb_pkg}, arch=${arch_pkg})"
+}
+
 test_validate_tool() {
     test_log "Testing tool validation..."
     validate_tool "nmap" || { test_log "FAIL: nmap validation failed"; return 1; }
@@ -185,6 +213,8 @@ run_tests() {
     test_get_categories || ((failed++))
     test_get_tools_in_category || ((failed++))
     test_get_distro_pkg_name || ((failed++))
+    test_in_memory_package_cache || ((failed++))
+    test_multiple_distro_mappings || ((failed++))
     test_validate_tool || ((failed++))
     test_validate_category || ((failed++))
     test_list_all_tools || ((failed++))

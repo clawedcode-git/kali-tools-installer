@@ -122,9 +122,9 @@ select_installation_scope() {
                 error "Unknown category: ${cat}"
                 exit 1
             fi
-            local tools
-            tools=$(get_tools_in_category "${cat}")
-            TOOLS_TO_INSTALL+=(${tools})
+            local -a cat_tools=()
+            read -ra cat_tools <<< "$(get_tools_in_category "${cat}")"
+            TOOLS_TO_INSTALL+=("${cat_tools[@]}")
         done
         info "Selected categories: ${SELECTED_CATEGORIES[*]}"
         return
@@ -143,7 +143,7 @@ select_installation_scope() {
     
     case "${choice}" in
         "All tools")
-            TOOLS_TO_INSTALL=($(list_all_tools))
+            mapfile -t TOOLS_TO_INSTALL < <(list_all_tools)
             ;;
         "Select categories")
             select_categories_interactive
@@ -155,11 +155,13 @@ select_installation_scope() {
 }
 
 select_categories_interactive() {
-    local categories=($(get_categories))
+    local categories=()
+    mapfile -t categories < <(get_categories)
     echo "Available categories:"
     for i in "${!categories[@]}"; do
-        local count
-        count=$(echo "${CATEGORY_TOOLS[${categories[i]}]}" | wc -w)
+        local -a cat_tools=()
+        read -ra cat_tools <<< "${CATEGORY_TOOLS[${categories[i]}]:-}"
+        local count=${#cat_tools[@]}
         echo "  $((i+1))) ${categories[i]} (${count} tools)"
     done
     echo
@@ -168,7 +170,7 @@ select_categories_interactive() {
     read -rp "Enter category numbers (comma-separated, or 'all'): " input
     
     if [[ "${input,,}" == "all" ]]; then
-        TOOLS_TO_INSTALL=($(list_all_tools))
+        mapfile -t TOOLS_TO_INSTALL < <(list_all_tools)
         return
     fi
     
@@ -177,15 +179,16 @@ select_categories_interactive() {
         sel=$(echo "${sel}" | xargs)
         if [[ "${sel}" =~ ^[0-9]+$ ]] && [[ ${sel} -ge 1 ]] && [[ ${sel} -le ${#categories[@]} ]]; then
             local cat="${categories[$((sel-1))]}"
-            local tools
-            tools=$(get_tools_in_category "${cat}")
-            TOOLS_TO_INSTALL+=(${tools})
+            local -a cat_tools=()
+            read -ra cat_tools <<< "$(get_tools_in_category "${cat}")"
+            TOOLS_TO_INSTALL+=("${cat_tools[@]}")
         fi
     done
 }
 
 select_tools_interactive() {
-    local all_tools=($(list_all_tools))
+    local all_tools=()
+    mapfile -t all_tools < <(list_all_tools)
     echo "Available tools (first 50):"
     for i in "${!all_tools[@]}"; do
         [[ $i -ge 50 ]] && break
@@ -348,28 +351,106 @@ run_installation() {
     
     info "Starting installation of ${#TOOLS_TO_INSTALL[@]} tools..."
     
-    local current=0
+    local -a batch_pkgs=()
+    local -A seen_pkgs=()
+    local -a unmapped_tools=()
+    local -a mapped_tools=()
+    
     for tool in "${TOOLS_TO_INSTALL[@]}"; do
-        let current=current+1
-        info "[${current}/${#TOOLS_TO_INSTALL[@]}] Installing ${tool}..."
+        local pkg
+        pkg=$(get_distro_pkg_name "${tool}")
+        if [[ -n "${pkg}" ]]; then
+            mapped_tools+=("${tool}")
+            if [[ -z "${seen_pkgs["${pkg}"]:-}" ]]; then
+                seen_pkgs["${pkg}"]="1"
+                batch_pkgs+=("${pkg}")
+            fi
+        else
+            unmapped_tools+=("${tool}")
+        fi
+    done
+    
+    for tool in "${unmapped_tools[@]}"; do
+        warn "No package mapping for ${tool} on ${DISTRO_FAMILY}"
+        INSTALL_RESULTS+=("SKIPPED:${tool} (no mapping)")
+    done
+    
+    if [[ ${#mapped_tools[@]} -eq 0 ]]; then
+        info "No packages available to install for ${DISTRO_FAMILY}."
+        return 0
+    fi
+    
+    local batch_supported=true
+    local -a batch_cmd=()
+    case "${PACKAGE_MANAGER}" in
+        pacman)
+            batch_cmd=(pacman -S --noconfirm --needed "${batch_pkgs[@]}")
+            ;;
+        apt)
+            batch_cmd=(apt install -y "${batch_pkgs[@]}")
+            ;;
+        dnf)
+            batch_cmd=(dnf install -y "${batch_pkgs[@]}")
+            ;;
+        zypper)
+            batch_cmd=(zypper install -y "${batch_pkgs[@]}")
+            ;;
+        apk)
+            batch_cmd=(apk add "${batch_pkgs[@]}")
+            ;;
+        xbps)
+            batch_cmd=(xbps-install -y "${batch_pkgs[@]}")
+            ;;
+        emerge)
+            batch_cmd=(emerge "${batch_pkgs[@]}")
+            ;;
+        *)
+            batch_supported=false
+            ;;
+    esac
+    
+    if [[ "${batch_supported}" == "true" ]]; then
+        info "Attempting batch installation of ${#batch_pkgs[@]} packages..."
+        local batch_res=0
+        run_cmd "${batch_cmd[@]}" || batch_res=$?
+        if [[ ${batch_res} -eq 0 ]]; then
+            for tool in "${mapped_tools[@]}"; do
+                local pkg
+                pkg=$(get_distro_pkg_name "${tool}")
+                success "Installed: ${tool} (${pkg})"
+                INSTALL_RESULTS+=("SUCCESS:${tool}")
+            done
+            return 0
+        fi
+        warn "Batch installation failed (exit code ${batch_res}). Falling back to individual package installation..."
+    fi
+    
+    local current=0
+    for tool in "${mapped_tools[@]}"; do
+        current=$((current + 1))
+        info "[${current}/${#mapped_tools[@]}] Installing ${tool}..."
         install_package "${tool}" || true
     done
 }
 
 list_installed_tools() {
     info "Checking installed Kali tools..."
-    for tool in $(list_all_tools); do
+    local all_tools=()
+    mapfile -t all_tools < <(list_all_tools)
+    for tool in "${all_tools[@]}"; do
         local pkg
         pkg=$(get_distro_pkg_name "${tool}")
         if [[ -n "${pkg}" ]]; then
             local installed=false
             case "${PACKAGE_MANAGER}" in
                 pacman) pacman -Q "${pkg}" &>/dev/null && installed=true ;;
-                apt) dpkg -l "${pkg}" 2>/dev/null | grep -q "^ii" && installed=true ;;
+                apt) dpkg-query -W -f='${Status}' "${pkg}" 2>/dev/null | grep -q "ok installed" && installed=true ;;
                 dnf) rpm -q "${pkg}" &>/dev/null && installed=true ;;
                 zypper) rpm -q "${pkg}" &>/dev/null && installed=true ;;
                 apk) apk info -e "${pkg}" &>/dev/null && installed=true ;;
                 slackpkg) slackpkg search installed "${pkg}" 2>/dev/null | grep -q "^${pkg}" && installed=true ;;
+                emerge) qlist -I -e "${pkg}" &>/dev/null || equery which "${pkg}" &>/dev/null && installed=true ;;
+                xbps) xbps-query -s "${pkg}" &>/dev/null && installed=true ;;
             esac
             if [[ "${installed}" == "true" ]]; then
                 echo "${tool} (${pkg})"
@@ -384,49 +465,28 @@ check_package_available() {
     
     case "${PACKAGE_MANAGER}" in
         pacman)
-            # pacman -Ss doesn't support exact regex well, use simple search
-            if pacman -Ss "${pkg_name}" 2>/dev/null | grep -q "^[a-z0-9/-]*${pkg_name}[a-z0-9/-]* "; then
-                available=true
-            fi
+            pacman -Si "${pkg_name}" &>/dev/null && available=true
             ;;
         apt)
-            if apt-cache policy "${pkg_name}" 2>/dev/null | grep -q "Candidate:"; then
-                local candidate
-                candidate=$(apt-cache policy "${pkg_name}" 2>/dev/null | grep "Candidate:" | awk '{print $2}')
-                if [[ "${candidate}" != "(none)" && -n "${candidate}" ]]; then
-                    available=true
-                fi
-            fi
+            apt-cache show "${pkg_name}" &>/dev/null && available=true
             ;;
         dnf)
-            if dnf list available "${pkg_name}" 2>/dev/null | grep -q "^${pkg_name}"; then
-                available=true
-            fi
+            { rpm -q "${pkg_name}" &>/dev/null || dnf info "${pkg_name}" &>/dev/null || dnf repoquery "${pkg_name}" &>/dev/null; } && available=true
             ;;
         zypper)
-            if zypper search --match-exact "${pkg_name}" 2>/dev/null | grep -q "^${pkg_name}"; then
-                available=true
-            fi
+            zypper info "${pkg_name}" &>/dev/null && available=true
             ;;
         slackpkg)
-            if slackpkg search "${pkg_name}" 2>/dev/null | grep -q "^${pkg_name}"; then
-                available=true
-            fi
+            slackpkg search "${pkg_name}" 2>/dev/null | grep -q "${pkg_name}" && available=true
             ;;
         emerge)
-            if emerge --search "${pkg_name}" 2>/dev/null | grep -q "^${pkg_name}"; then
-                available=true
-            fi
+            emerge --search "%@^${pkg_name}$" &>/dev/null && available=true
             ;;
         apk)
-            if apk search "${pkg_name}" 2>/dev/null | grep -q "^${pkg_name}-"; then
-                available=true
-            fi
+            apk info "${pkg_name}" &>/dev/null && available=true
             ;;
         xbps)
-            if xbps-query -Rs "^${pkg_name}$" 2>/dev/null | grep -q "^${pkg_name}-"; then
-                available=true
-            fi
+            xbps-query -R "${pkg_name}" &>/dev/null && available=true
             ;;
     esac
     
@@ -563,11 +623,12 @@ run_precheck() {
     if [[ ${#SELECTED_CATEGORIES[@]} -gt 0 ]]; then
         categories=("${SELECTED_CATEGORIES[@]}")
     else
-        categories=($(get_categories))
+        mapfile -t categories < <(get_categories)
     fi
     
     for cat in "${categories[@]}"; do
-        local tools=($(get_tools_in_category "${cat}"))
+        local -a tools=()
+        read -ra tools <<< "$(get_tools_in_category "${cat}")"
         local cat_total=${#tools[@]}
         local cat_available=0
         local cat_missing=0

@@ -6,6 +6,8 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 
 - **Cross-distribution support**: Automatically detects your distribution and uses the appropriate package manager
 - **Extensive Kali toolset**: Installs curated penetration testing and security auditing tools across 12 categories
+- **High-performance batch installation**: Bundles packages into single native package transactions with automatic individual-package fallback on failure
+- **In-memory package resolution**: $O(1)$ tool-to-distro package mapping lookup without repeated disk/awk overhead
 - **Interactive & non-interactive modes**: Run manually or automate in CI/CD
 - **Modular design**: Easy to extend for new distributions
 - **Package availability precheck**: Query repositories before installing to see what's available
@@ -42,8 +44,9 @@ sudo ./install.sh
 | **RHEL/CentOS/Rocky/Alma** | dnf/yum | ✅ Supported |
 | **openSUSE** | zypper | ✅ Supported |
 | **Slackware** | slackpkg/sbopkg | ✅ Supported |
-| **Gentoo** | emerge | 🟡 Planned |
-| **Alpine** | apk | 🟡 Planned |
+| **Gentoo** | emerge | ✅ Supported |
+| **Alpine** | apk | ✅ Supported |
+| **Void** | xbps | ✅ Supported |
 
 ## Usage
 

@@ -88,36 +88,11 @@ detect_distro() {
 
 get_distro_pkg_name() {
     local tool="$1"
-    local field=""
+    local family="${DISTRO_FAMILY:-debian}"
     
-    case "${DISTRO_FAMILY}" in
-        arch) field="arch_pkg" ;;
-        debian) field="debian_pkg" ;;
-        fedora) field="fedora_pkg" ;;
-        slackware) field="slackware_pkg" ;;
-        opensuse) field="opensuse_pkg" ;;
-        gentoo) field="gentoo_pkg" ;;
-        alpine) field="alpine_pkg" ;;
-        void) field="void_pkg" ;;
-        *) field="debian_pkg" ;;
-    esac
+    if [[ ${#TOOL_PKG_MAPPINGS[@]} -eq 0 && -f "${KALI_TOOLS_LIST:-}" ]]; then
+        load_tool_list >/dev/null 2>&1 || true
+    fi
     
-    local pkg_name
-    pkg_name=$(awk -F'|' -v tool="${tool}" -v field="${field}" '
-        $1 == tool { 
-            split($0, a, "|")
-            for (i=1; i<=NF; i++) {
-                if (i == 4 && field == "debian_pkg") print a[i]
-                if (i == 5 && field == "arch_pkg") print a[i]
-                if (i == 6 && field == "fedora_pkg") print a[i]
-                if (i == 7 && field == "slackware_pkg") print a[i]
-                if (i == 8 && field == "opensuse_pkg") print a[i]
-                if (i == 9 && field == "gentoo_pkg") print a[i]
-                if (i == 10 && field == "alpine_pkg") print a[i]
-                if (i == 11 && field == "void_pkg") print a[i]
-            }
-        }
-    ' "${KALI_TOOLS_LIST}")
-    
-    echo "${pkg_name}"
+    echo "${TOOL_PKG_MAPPINGS["${family}:${tool}"]:-}"
 }

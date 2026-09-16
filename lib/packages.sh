@@ -4,6 +4,7 @@ set -euo pipefail
 declare -A TOOL_CATEGORIES
 declare -A TOOL_DESCRIPTIONS
 declare -A CATEGORY_TOOLS
+declare -A TOOL_PKG_MAPPINGS
 
 load_tool_list() {
     if [[ ! -f "${KALI_TOOLS_LIST}" ]]; then
@@ -19,9 +20,18 @@ load_tool_list() {
         TOOL_CATEGORIES["${tool}"]="${category}"
         TOOL_DESCRIPTIONS["${tool}"]="${desc}"
         CATEGORY_TOOLS["${category}"]+="${tool} "
+
+        [[ -n "${debian_pkg}" ]] && TOOL_PKG_MAPPINGS["debian:${tool}"]="${debian_pkg}"
+        [[ -n "${arch_pkg}" ]] && TOOL_PKG_MAPPINGS["arch:${tool}"]="${arch_pkg}"
+        [[ -n "${fedora_pkg}" ]] && TOOL_PKG_MAPPINGS["fedora:${tool}"]="${fedora_pkg}"
+        [[ -n "${slackware_pkg}" ]] && TOOL_PKG_MAPPINGS["slackware:${tool}"]="${slackware_pkg}"
+        [[ -n "${opensuse_pkg}" ]] && TOOL_PKG_MAPPINGS["opensuse:${tool}"]="${opensuse_pkg}"
+        [[ -n "${gentoo_pkg}" ]] && TOOL_PKG_MAPPINGS["gentoo:${tool}"]="${gentoo_pkg}"
+        [[ -n "${alpine_pkg}" ]] && TOOL_PKG_MAPPINGS["alpine:${tool}"]="${alpine_pkg}"
+        [[ -n "${void_pkg}" ]] && TOOL_PKG_MAPPINGS["void:${tool}"]="${void_pkg}"
     done < "${KALI_TOOLS_LIST}"
     
-    debug "Loaded ${#TOOL_CATEGORIES[@]} tools across $(echo "${!CATEGORY_TOOLS[@]}" | wc -w) categories"
+    debug "Loaded ${#TOOL_CATEGORIES[@]} tools across ${#CATEGORY_TOOLS[@]} categories"
 }
 
 get_categories() {
