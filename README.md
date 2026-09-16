@@ -1,7 +1,7 @@
 # Kali Tools Installer
 
 [![CI](https://github.com/clawedcode-git/kali-tools-installer/actions/workflows/ci.yml/badge.svg)](https://github.com/clawedcode-git/kali-tools-installer/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/Tests-68%20Passing-brightgreen.svg)](#running-tests)
+[![Tests](https://img.shields.io/badge/Tests-73%20Passing-brightgreen.svg)](#running-tests)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Bash](https://img.shields.io/badge/Bash-4.0%2B-brightgreen.svg)](https://www.gnu.org/software/bash/)
 [![Platform](https://img.shields.io/badge/Platform-Linux-blue.svg)](#supported-distributions)
@@ -15,6 +15,8 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 - **Curated tool presets**: Quick installations using presets like `top10`, `default`, `headless`, `web`, `wireless`, and `passwords`
 - **Extensive Kali toolset**: Installs curated penetration testing and security auditing tools across 12 categories
 - **Smart 5-tier installation fallback**: Intelligent resolution pipeline for Arch / CachyOS: `native pacman` → `AUR helpers` (`yay`/`paru`) → `pipx`/`pip3` (PyPI) → `BlackArch repo` → `source compilation`
+- **Interactive batch install progress bar & visual counter**: Real-time progress bar (`[42/108] 39% [=========> ] Installing nmap...`) adapting to terminal width with graceful line-by-line fallback for CI/redirected environments
+- **Shell tab completion generator**: `--completion <bash|zsh>` outputs full tab-completion definitions for flags, presets, categories, and all 171 tools
 - **PyPI / pipx fallback tier**: Pure Python security tools (`dnsrecon`, `theHarvester`, `wfuzz`, `cupp`, `cmsmap`, `metagoofil`, `wifiphisher`) automatically install via `pipx` or PEP 668 compliant `pip3`
 - **Intelligent BlackArch repository auto-integration**: Tools missing from official/AUR repositories check BlackArch metadata with automatic setup prompts or seamless `--yes` bootstrapping
 - **Installed tools dashboard**: Multi-column dashboard (`--list-installed`) displaying installed Kali tools, packaging methods (`pacman`, `aur`, `pipx`, `source`), version detection, and category statistics
@@ -27,7 +29,7 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 - **Automated dependency resolution**: Resolves and pre-installs required runtime dependencies (`deps` column) and automatically provisions build prerequisites (`go`, `python3-pip`, `cmake`, `make`, `gcc`, `git`) before compiling source fallbacks
 - **Tool uninstallation & cleanup engine**: Cleanly remove installed tools, presets, or categories (`--uninstall` / `--remove`) via native package managers and purge `/usr/local/bin`, `/opt`, and `pipx` packages with safe `--dry-run` previews
 - **Persistent configuration file**: Store defaults (distribution, presets, categories, tools, method overrides, BlackArch enablement, report exports, log locations) in `${XDG_CONFIG_HOME:-~/.config}/kali-installer/config`, `/etc/kali-installer/config`, or a custom path with `--config <path>`
-- **ASCII art banner & retro BBS menus**: Dynamic typography banner with real-time environment dashboard and instant single-key BBS menus for interactive exploration, presets, categories, and settings
+- **ASCII art banner & retro BBS menus**: Dynamic typography banner with real-time environment dashboard and instant single-key BBS menus for interactive exploration, presets, categories, settings, and direct hotkeys for updates, diffs, and completions
 - **Docker & CI automation**: Universal multi-distro `Dockerfile`, `docker-compose.yml`, local container test runner (`scripts/docker-test.sh`), and GitHub Actions CI matrix testing across 6 distributions on every push and PR
 - **High-performance batch installation**: Bundles packages into single native package transactions with automatic individual-package fallback on failure
 - **In-memory package resolution**: $O(1)$ tool-to-distro package mapping lookup without repeated disk/awk overhead
@@ -169,6 +171,7 @@ When combined with `--dry-run`, the installer evaluates availability, plans the 
 | `--update` | Update all currently installed Kali tools across native, AUR, pipx, and Git source |
 | `--diff` | Compare installed tools against selected scope (preset, category, or all) |
 | `--method-override <tool:method,...>` | Override installation method for specific tools (e.g. `wfuzz:pip,nmap:source`) |
+| `--completion <bash\|zsh>` | Output shell tab completion script to stdout (e.g. `eval "$(/path/to/install.sh --completion bash)"`) |
 | `--help`, `-h` | Show help |
 
 ## Tool Presets
@@ -476,7 +479,7 @@ kali-tools-installer/
 
 ### Running Tests
 
-The test suite contains 68 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, 5-tier installation fallback, pipx/pip PyPI resolution, BlackArch repository bootstrapping & auto-integration, JSON/CSV report exports, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, CI & Docker automation, ASCII banner & BBS menus, multiline array ingestion, tool list idempotence, empty target guards, build recipes, installed tools dashboard, scoped auto-update, per-tool method overrides, diff mode matrix, and clean logging:
+The test suite contains 73 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, 5-tier installation fallback, pipx/pip PyPI resolution, BlackArch repository bootstrapping & auto-integration, JSON/CSV report exports, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, CI & Docker automation, ASCII banner & BBS menus, multiline array ingestion, tool list idempotence, empty target guards, build recipes, installed tools dashboard, scoped auto-update, per-tool method overrides, diff mode matrix, batch progress bar & counter, bash & zsh tab completion generation, enhanced BlackArch mappings, and clean logging:
 
 ```bash
 

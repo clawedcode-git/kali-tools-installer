@@ -20,6 +20,7 @@ parse_args() {
     declare -g EXPORT_REPORT_FILE="${EXPORT_REPORT_FILE:-}"
     declare -g UPDATE_MODE="${UPDATE_MODE:-false}"
     declare -g DIFF_MODE="${DIFF_MODE:-false}"
+    declare -g SHELL_COMPLETION="${SHELL_COMPLETION:-}"
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -190,6 +191,27 @@ parse_args() {
                 done
                 shift
                 ;;
+            --completion)
+                if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+                    error "Option $1 requires an argument (bash or zsh)"
+                    print_help
+                    exit 1
+                fi
+                SHELL_COMPLETION="${2,,}"
+                export SHELL_COMPLETION
+                shift 2
+                ;;
+            --completion=*)
+                SHELL_COMPLETION="${1#--completion=}"
+                SHELL_COMPLETION="${SHELL_COMPLETION,,}"
+                if [[ -z "${SHELL_COMPLETION}" ]]; then
+                    error "Option --completion requires an argument (bash or zsh)"
+                    print_help
+                    exit 1
+                fi
+                export SHELL_COMPLETION
+                shift
+                ;;
             --export-report)
                 if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
                     error "Option $1 requires a file path argument"
@@ -222,7 +244,7 @@ parse_args() {
         esac
     done
     
-    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL CONFIG_FILE NO_TUI LIST_INSTALLED EXPORT_REPORT_FILE UPDATE_MODE DIFF_MODE
+    export FORCE_DISTRO ASSUME_YES DRY_RUN SKIP_UPDATE LOG_FILE PRECHECK ENABLE_BLACKARCH SELECTED_PRESET INSTALL_DEPS UNINSTALL CONFIG_FILE NO_TUI LIST_INSTALLED EXPORT_REPORT_FILE UPDATE_MODE DIFF_MODE SHELL_COMPLETION
 }
 
 print_help() {
@@ -248,6 +270,7 @@ Options:
     --no-tui, --plain       Disable ASCII banner styling and BBS interactive menus
     --log-file <path>       Custom log location
     --list-installed        Display dashboard of installed Kali tools with version & method
+    --completion <bash|zsh> Output shell tab completion script to stdout
     --precheck              Check package availability (official/AUR/pipx/BlackArch)
     --export-report <path>  Export availability/install report to JSON or CSV file
     --help, -h              Show this help
@@ -1136,7 +1159,7 @@ run_installation() {
     local -a all_to_install=("${mapped_tools[@]}" "${overridden_tools[@]}")
     for tool in "${all_to_install[@]}"; do
         current=$((current + 1))
-        info "[${current}/${#all_to_install[@]}] Installing ${tool}..."
+        print_progress_bar "${current}" "${#all_to_install[@]}" "Installing" "${tool}"
         install_package "${tool}" || true
     done
 }
@@ -2370,4 +2393,125 @@ export_report() {
     esac
     
     success "Report exported → ${EXPORT_REPORT_FILE}"
+}
+
+# ---------------------------------------------------------------------------
+# generate_completion — Generate bash or zsh tab completion script
+# ---------------------------------------------------------------------------
+
+generate_completion() {
+    local shell_type="${1:-bash}"
+    shell_type="${shell_type,,}"
+    
+    load_tool_list >/dev/null 2>&1 || true
+    local presets categories all_tools distros methods
+    presets=$(get_presets | tr '\n' ' ')
+    categories=$(get_categories | tr '\n' ' ')
+    all_tools=$(list_all_tools | tr '\n' ' ')
+    distros="arch debian fedora slackware opensuse gentoo alpine void cachyos ubuntu"
+    methods="native aur pip pipx blackarch source"
+    
+    case "${shell_type}" in
+        bash)
+            cat << 'EOF'
+# Bash completion for kali-tools-installer
+_kali_tools_installer() {
+    local cur prev words cword
+    _init_completion || return
+
+    local options="--distro --preset --categories --tools --config --yes -y --dry-run --no-update --no-deps --uninstall --remove --update --diff --method-override --method --enable-blackarch --no-tui --plain --log-file --list-installed --completion --precheck --export-report --help -h"
+EOF
+            echo "    local distros=\"${distros}\""
+            echo "    local presets=\"${presets}\""
+            echo "    local categories=\"${categories}\""
+            echo "    local tools=\"${all_tools}\""
+            echo "    local methods=\"${methods}\""
+            cat << 'EOF'
+
+    case "${prev}" in
+        --distro)
+            COMPREPLY=( $(compgen -W "${distros}" -- "${cur}") )
+            return 0
+            ;;
+        --preset)
+            COMPREPLY=( $(compgen -W "${presets}" -- "${cur}") )
+            return 0
+            ;;
+        --categories)
+            COMPREPLY=( $(compgen -W "${categories}" -- "${cur}") )
+            return 0
+            ;;
+        --tools)
+            COMPREPLY=( $(compgen -W "${tools}" -- "${cur}") )
+            return 0
+            ;;
+        --config|--log-file|--export-report)
+            _filedir
+            return 0
+            ;;
+        --completion)
+            COMPREPLY=( $(compgen -W "bash zsh" -- "${cur}") )
+            return 0
+            ;;
+        --method-override|--method)
+            COMPREPLY=( $(compgen -W "${tools}" -- "${cur}") )
+            return 0
+            ;;
+    esac
+
+    if [[ "${cur}" == --* ]]; then
+        COMPREPLY=( $(compgen -W "${options}" -- "${cur}") )
+        return 0
+    fi
+}
+complete -F _kali_tools_installer install.sh ./install.sh
+EOF
+            ;;
+        zsh)
+            cat << 'EOF'
+#compdef install.sh ./install.sh
+
+_kali_tools_installer() {
+    local -a options
+    options=(
+        '--distro[Force distribution]:distro:(arch debian fedora slackware opensuse gentoo alpine void cachyos ubuntu)'
+EOF
+            printf "        '--preset[Install curated preset]:preset:(%s)'\n" "${presets}"
+            printf "        '--categories[Comma-separated categories to install]:category:(%s)'\n" "${categories}"
+            printf "        '--tools[Comma-separated specific tools to install]:tool:(%s)'\n" "${all_tools}"
+            cat << 'EOF'
+        '--config[Load custom configuration file]:config file:_files'
+        '--yes[Skip confirmations]'
+        '-y[Skip confirmations]'
+        '--dry-run[Preview without installing]'
+        '--no-update[Skip package database update]'
+        '--no-deps[Skip automatic dependency installation]'
+        '--uninstall[Uninstall targeted tools, preset, or categories]'
+        '--remove[Uninstall targeted tools, preset, or categories]'
+        '--update[Update all currently installed Kali tools]'
+        '--diff[Compare installed tools vs selected scope]'
+        '--method-override[Override installation method for specific tools]:override:'
+        '--method[Override installation method for specific tools]:override:'
+        '--enable-blackarch[Enable BlackArch repository on Arch/CachyOS]'
+        '--no-tui[Disable ASCII banner and BBS menus]'
+        '--plain[Disable ASCII banner and BBS menus]'
+        '--log-file[Custom log location]:log file:_files'
+        '--list-installed[Display dashboard of installed Kali tools]'
+        '--completion[Output shell tab completion script]:shell:(bash zsh)'
+        '--precheck[Check package availability]'
+        '--export-report[Export availability/install report]:report file:_files'
+        '--help[Show help]'
+        '-h[Show help]'
+    )
+    _arguments -s -S $options
+}
+
+_kali_tools_installer "$@"
+EOF
+            ;;
+        *)
+            error "Unsupported shell for completion: ${shell_type}. Supported: bash, zsh"
+            return 1
+            ;;
+    esac
 }

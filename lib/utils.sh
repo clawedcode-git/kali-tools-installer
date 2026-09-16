@@ -66,6 +66,40 @@ debug() {
     fi
 }
 
+print_progress_bar() {
+    local current="$1"
+    local total="$2"
+    local prefix="${3:-Installing}"
+    local item="${4:-}"
+    
+    [[ ${total} -le 0 ]] && return 0
+    (( current > total )) && current="${total}"
+    
+    local pct=$(( current * 100 / total ))
+    local bar_width=20
+    local filled=$(( current * bar_width / total ))
+    local unfilled=$(( bar_width - filled ))
+    
+    local bar_str=""
+    if [[ ${filled} -gt 0 ]]; then
+        bar_str=$(printf "%0.s=" $(seq 1 ${filled}))
+    fi
+    local space_str=""
+    if [[ ${unfilled} -gt 0 ]]; then
+        space_str=$(printf "%0.s " $(seq 1 ${unfilled}))
+    fi
+    
+    if [[ -t 1 && "${NO_TUI:-false}" != "true" ]]; then
+        printf "\r${BLUE}[%d/%d]${NC} ${GREEN}%3d%%${NC} ${BLUE}[${GREEN}%s${YELLOW}>${NC}%s${BLUE}]${NC} ${CYAN}%s${NC} %-25s" \
+            "${current}" "${total}" "${pct}" "${bar_str}" "${space_str}" "${prefix}" "${item}"
+        if [[ "${current}" -eq "${total}" ]]; then
+            printf "\n"
+        fi
+    else
+        log "INFO" "[${current}/${total}] (${pct}%) ${prefix} ${item}"
+    fi
+}
+
 prompt_yes_no() {
     local prompt="$1"
     local default="${2:-n}"

@@ -941,6 +941,61 @@ EOF
     test_log "PASS: config method override parsing verified"
 }
 
+test_progress_bar_helper() {
+    test_log "Testing print_progress_bar helper under non-TTY..."
+    local out
+    out=$(NO_TUI=true print_progress_bar 5 10 "Installing" "nmap" 2>&1)
+    echo "${out}" | grep -q "\[5/10\] (50%) Installing nmap" || { test_log "FAIL: print_progress_bar output invalid: ${out}"; return 1; }
+    test_log "PASS: print_progress_bar helper verified"
+}
+
+test_completion_bash() {
+    test_log "Testing --completion bash generation..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --completion bash 2>&1)
+    echo "${out}" | grep -q "_kali_tools_installer()" || { test_log "FAIL: bash completion function missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "complete -F _kali_tools_installer install.sh ./install.sh" || { test_log "FAIL: bash complete command missing"; return 1; }
+    echo "${out}" | grep -q "top10" || { test_log "FAIL: presets missing from bash completion"; return 1; }
+    echo "${out}" | grep -q "nmap" || { test_log "FAIL: tools missing from bash completion"; return 1; }
+    test_log "PASS: --completion bash generation verified"
+}
+
+test_completion_zsh() {
+    test_log "Testing --completion zsh generation..."
+    local out
+    out=$(bash "${PROJECT_ROOT}/install.sh" --completion zsh 2>&1)
+    echo "${out}" | grep -q "#compdef install.sh ./install.sh" || { test_log "FAIL: zsh compdef header missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "_arguments -s -S \$options" || { test_log "FAIL: zsh arguments call missing"; return 1; }
+    echo "${out}" | grep -q "top10" || { test_log "FAIL: presets missing from zsh completion"; return 1; }
+    echo "${out}" | grep -q "nmap" || { test_log "FAIL: tools missing from zsh completion"; return 1; }
+    test_log "PASS: --completion zsh generation verified"
+}
+
+test_enhanced_blackarch_mappings() {
+    test_log "Testing enhanced BlackArch package mappings in kali-tools.list..."
+    load_tool_list
+    local pkg
+    pkg=$(get_tool_blackarch_pkg "wifiphisher")
+    [[ "${pkg}" == "wifiphisher" ]] || { test_log "FAIL: wifiphisher blackarch pkg expected 'wifiphisher', got '${pkg}'"; return 1; }
+    pkg=$(get_tool_blackarch_pkg "volatility3")
+    [[ "${pkg}" == "volatility3" ]] || { test_log "FAIL: volatility3 blackarch pkg expected 'volatility3', got '${pkg}'"; return 1; }
+    pkg=$(get_tool_blackarch_pkg "bulk-extractor")
+    [[ "${pkg}" == "bulk_extractor" ]] || { test_log "FAIL: bulk-extractor blackarch pkg expected 'bulk_extractor', got '${pkg}'"; return 1; }
+    pkg=$(get_tool_blackarch_pkg "sdrangel")
+    [[ "${pkg}" == "sdrangel" ]] || { test_log "FAIL: sdrangel blackarch pkg expected 'sdrangel', got '${pkg}'"; return 1; }
+    pkg=$(get_tool_blackarch_pkg "sigrok")
+    [[ "${pkg}" == "sigrok-cli" ]] || { test_log "FAIL: sigrok blackarch pkg expected 'sigrok-cli', got '${pkg}'"; return 1; }
+    test_log "PASS: enhanced BlackArch package mappings verified"
+}
+
+test_bbs_menu_shortcuts() {
+    test_log "Testing BBS menu new shortcut options are present..."
+    grep -q '\[U\]' "${PROJECT_ROOT}/lib/menu.sh" || { test_log "FAIL: [U] shortcut missing from menu.sh"; return 1; }
+    grep -q '\[D\]' "${PROJECT_ROOT}/lib/menu.sh" || { test_log "FAIL: [D] shortcut missing from menu.sh"; return 1; }
+    grep -q '\[C\]' "${PROJECT_ROOT}/lib/menu.sh" || { test_log "FAIL: [C] shortcut missing from menu.sh"; return 1; }
+    test_log "PASS: BBS menu shortcuts verified"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -1015,6 +1070,11 @@ run_tests() {
     test_diff_mode_preset || ((failed+=1))
     test_diff_mode_export_report || ((failed+=1))
     test_config_method_override_parsing || ((failed+=1))
+    test_progress_bar_helper || ((failed+=1))
+    test_completion_bash || ((failed+=1))
+    test_completion_zsh || ((failed+=1))
+    test_enhanced_blackarch_mappings || ((failed+=1))
+    test_bbs_menu_shortcuts || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then

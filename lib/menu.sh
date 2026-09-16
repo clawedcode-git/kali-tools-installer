@@ -16,12 +16,15 @@ bbs_main_menu() {
         echo -e "  ${GREEN}[6]${NC}  🗑️  Tool Uninstallation & Cleanup Engine"
         echo -e "  ${GREEN}[7]${NC}  📋 View Currently Installed Tools"
         echo -e "  ${GREEN}[8]${NC}  ⚙️  Toggle Options (Dry-Run: ${YELLOW}${DRY_RUN}${NC}, Deps: ${YELLOW}${INSTALL_DEPS}${NC})"
+        echo -e "  ${CYAN}[U]${NC}  🔄 Auto-Update Installed Kali Tools"
+        echo -e "  ${CYAN}[D]${NC}  📊 Scope Diff Mode (Installed vs Missing)"
+        echo -e "  ${CYAN}[C]${NC}  ⚡ Shell Tab-Completion Generator (Bash / Zsh)"
         echo -e "  ${RED}[Q]${NC}  🚪 Exit Installer"
         echo
         echo -e "${BLUE}─────────────────────────────────────────────────────────────────${NC}"
         
         local choice
-        choice=$(bbs_read_key "  Select an option [1-8, Q]: ")
+        choice=$(bbs_read_key "  Select an option [1-8, U, D, C, Q]: ")
         echo
         
         case "${choice,,}" in
@@ -75,6 +78,29 @@ bbs_main_menu() {
                 ;;
             8)
                 bbs_toggle_options_menu
+                ;;
+            u)
+                echo
+                info "Running Scoped Auto-Update for installed Kali tools..."
+                run_update
+                echo
+                read -rp "  Press [Enter] to return to menu..." _
+                ;;
+            d)
+                echo
+                info "Running Scope Diff Mode..."
+                run_diff
+                echo
+                read -rp "  Press [Enter] to return to menu..." _
+                ;;
+            c)
+                echo
+                info "=== Shell Tab-Completion Setup ==="
+                info "To enable tab-completion in your current session:"
+                info "  Bash: eval \"\$($(basename "$0") --completion bash)\""
+                info "  Zsh:  eval \"\$($(basename "$0") --completion zsh)\""
+                echo
+                read -rp "  Press [Enter] to return to menu..." _
                 ;;
             q)
                 echo

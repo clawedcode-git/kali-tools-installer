@@ -34,6 +34,11 @@ main() {
         exit 0
     fi
     
+    if [[ -n "${SHELL_COMPLETION:-}" ]]; then
+        generate_completion "${SHELL_COMPLETION}"
+        exit 0
+    fi
+    
     init_logging
     detect_distro
     load_tool_list

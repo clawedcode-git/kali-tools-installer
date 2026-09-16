@@ -74,72 +74,72 @@ patator|password|Multi-service brute|patator|patator|patator|patator|patator||||
 crowbar|password|Brute force|crowbar|crowbar|crowbar|crowbar|crowbar||||||
 cewl|password|Custom wordlist generator|cewl|cewl|cewl|cewl|cewl||||ruby||cewl
 crunch|password|Wordlist generator|crunch|crunch|crunch|crunch|crunch||||make||
-cupp|password|Common password profiler|cupp|cupp|cupp|cupp|cupp||||python3|cupp|
+cupp|password|Common password profiler|cupp|cupp|cupp|cupp|cupp||||python3|cupp|cupp
 rsmangler|password|Wordlist mangler|rsmangler|rsmangler|rsmangler|rsmangler|rsmangler|||||rsmangler|rsmangler
-maskprocessor|password|Mask processor|maskprocessor|maskprocessor|maskprocessor|maskprocessor|maskprocessor||||||
-statsprocessor|password|Statistics processor|statsprocessor|statsprocessor|statsprocessor|statsprocessor|statsprocessor||||||
+maskprocessor|password|Mask processor|maskprocessor|maskprocessor|maskprocessor|maskprocessor|maskprocessor||||||maskprocessor
+statsprocessor|password|Statistics processor|statsprocessor|statsprocessor|statsprocessor|statsprocessor|statsprocessor||||||statsprocessor
 princeprocessor|password|PRINCE generator|princeprocessor|princeprocessor|princeprocessor|princeprocessor|princeprocessor||||||princeprocessor
 aircrack-ng|wireless|WiFi cracking|aircrack-ng|aircrack-ng|aircrack-ng|aircrack-ng|aircrack-ng|net-wireless/aircrack-ng|aircrack-ng|aircrack-ng|libpcap,make||
-wifite|wireless|Automated WiFi attack|wifite|wifite|wifite|wifite|wifite||||python3||
+wifite|wireless|Automated WiFi attack|wifite|wifite|wifite|wifite|wifite||||python3||wifite
 kismet|wireless|Wireless detector|kismet|kismet|kismet|kismet|kismet|net-wireless/kismet|kismet|kismet|libpcap||
-reaver|wireless|WPS attack|reaver|reaver|reaver|reaver|reaver||||||
-bully|wireless|WPS brute force|bully|bully|bully|bully|bully||||||
-pixiewps|wireless|WPS pixie dust|pixiewps|pixiewps|pixiewps|pixiewps|pixiewps||||||
-wash|wireless|WPS scanner|reaver|reaver|reaver|reaver|reaver||||||
+reaver|wireless|WPS attack|reaver|reaver|reaver|reaver|reaver||||||reaver
+bully|wireless|WPS brute force|bully|bully|bully|bully|bully||||||bully
+pixiewps|wireless|WPS pixie dust|pixiewps|pixiewps|pixiewps|pixiewps|pixiewps||||||pixiewps
+wash|wireless|WPS scanner|reaver|reaver|reaver|reaver|reaver||||||reaver
 fern-wifi-cracker|wireless|WiFi cracker GUI|fern-wifi-cracker|fern-wifi-cracker|fern-wifi-cracker|fern-wifi-cracker|fern-wifi-cracker||||||fern-wifi-cracker
 wifi-honey|wireless|Honeypot|wifi-honey|wifi-honey|wifi-honey|wifi-honey|wifi-honey||||||wifi-honey
-hostapd-wpe|wireless|Wireless PEAP|hostapd-wpe|hostapd-wpe|hostapd-wpe|hostapd-wpe|hostapd-wpe||||||
+hostapd-wpe|wireless|Wireless PEAP|hostapd-wpe|hostapd-wpe|hostapd-wpe|hostapd-wpe|hostapd-wpe||||||hostapd-wpe
 eaphammer|wireless|Evil AP|eaphammer|eaphammer|eaphammer|eaphammer|eaphammer|||||eaphammer|eaphammer
 fluxion|wireless|WiFi MITM|fluxion|fluxion|fluxion|fluxion|fluxion||||||fluxion
 wifiphisher|wireless|Phishing AP|wifiphisher|wifiphisher|wifiphisher|wifiphisher|wifiphisher|||||wifiphisher|wifiphisher
-create_ap|wireless|Create AP|create_ap|create_ap|create_ap|create_ap|create_ap||||||
-mdk3|wireless|802.11 exploitation|mdk3|mdk3|mdk3|mdk3|mdk3||||||
-mdk4|wireless|802.11 exploitation|mdk4|mdk4|mdk4|mdk4|mdk4||||||
-autopsy|forensics|Digital forensics|autopsy|autopsy|autopsy|autopsy|autopsy||||git||
-sleuthkit|forensics|Forensic toolkit|sleuthkit|sleuthkit|sleuthkit|sleuthkit|sleuthkit|sys-apps/sleuthkit|sleuthkit|sleuthkit|make||
+create_ap|wireless|Create AP|create_ap|create_ap|create_ap|create_ap|create_ap||||||create_ap
+mdk3|wireless|802.11 exploitation|mdk3|mdk3|mdk3|mdk3|mdk3||||||mdk3
+mdk4|wireless|802.11 exploitation|mdk4|mdk4|mdk4|mdk4|mdk4||||||mdk4
+autopsy|forensics|Digital forensics|autopsy|autopsy|autopsy|autopsy|autopsy||||git||autopsy
+sleuthkit|forensics|Forensic toolkit|sleuthkit|sleuthkit|sleuthkit|sleuthkit|sleuthkit|sys-apps/sleuthkit|sleuthkit|sleuthkit|make||sleuthkit
 volatility|forensics|Memory forensics|volatility|volatility|volatility|volatility|volatility||||python3|volatility|volatility
-volatility3|forensics|Memory forensics v3|volatility3|volatility3|volatility3|volatility3|volatility3||||python3|volatility3|
-bulk-extractor|forensics|Bulk extraction|bulk-extractor|bulk-extractor|bulk-extractor|bulk-extractor|bulk-extractor||||make||bulk-extractor
-foremost|forensics|File carving|foremost|foremost|foremost|foremost|foremost||||||
+volatility3|forensics|Memory forensics v3|volatility3|volatility3|volatility3|volatility3|volatility3||||python3|volatility3|volatility3
+bulk-extractor|forensics|Bulk extraction|bulk-extractor|bulk-extractor|bulk-extractor|bulk-extractor|bulk-extractor||||make||bulk_extractor
+foremost|forensics|File carving|foremost|foremost|foremost|foremost|foremost||||||foremost
 scalpel|forensics|File carving|scalpel|scalpel|scalpel|scalpel|scalpel||||||scalpel
-binwalk|forensics|Firmware analysis|binwalk|binwalk|binwalk|binwalk|binwalk||||python3||
+binwalk|forensics|Firmware analysis|binwalk|binwalk|binwalk|binwalk|binwalk||||python3||binwalk
 firmwalker|forensics|Firmware analysis|firmwalker|firmwalker|firmwalker|firmwalker|firmwalker||||||firmwalker
 firmadyne|forensics|Firmware emulation|firmadyne|firmadyne|firmadyne|firmadyne|firmadyne||||||firmadyne
-chkrootkit|forensics|Rootkit detector|chkrootkit|chkrootkit|chkrootkit|chkrootkit|chkrootkit||||||
-rkhunter|forensics|Rootkit hunter|rkhunter|rkhunter|rkhunter|rkhunter|rkhunter||||||
-lynis|forensics|System auditing|lynis|lynis|lynis|lynis|lynis||||||
-tiger|forensics|Security audit|tiger|tiger|tiger|tiger|tiger||||||
-ghidra|reverse|NSA reverse engineering|ghidra|ghidra|ghidra|ghidra|ghidra||||||
-radare2|reverse|RE framework|radare2|radare2|radare2|radare2|radare2|dev-util/radare2|radare2|radare2|make||
+chkrootkit|forensics|Rootkit detector|chkrootkit|chkrootkit|chkrootkit|chkrootkit|chkrootkit||||||chkrootkit
+rkhunter|forensics|Rootkit hunter|rkhunter|rkhunter|rkhunter|rkhunter|rkhunter||||||rkhunter
+lynis|forensics|System auditing|lynis|lynis|lynis|lynis|lynis||||||lynis
+tiger|forensics|Security audit|tiger|tiger|tiger|tiger|tiger||||||tiger
+ghidra|reverse|NSA reverse engineering|ghidra|ghidra|ghidra|ghidra|ghidra||||||ghidra
+radare2|reverse|RE framework|radare2|radare2|radare2|radare2|radare2|dev-util/radare2|radare2|radare2|make||radare2
 gdb|reverse|GNU debugger|gdb|gdb|gdb|gdb|gdb|sys-devel/gdb|gdb|gdb|make||
 ida-free|reverse|IDA Free|ida-free|ida-free|ida-free|ida-free|ida-free||||||
 hopper|reverse|Hopper disassembler|hopper|hopper|hopper|hopper|hopper||||||
 binary-ninja|reverse|Binary Ninja|binary-ninja|binary-ninja|binary-ninja|binary-ninja|binary-ninja||||||
-cutter|reverse|Cutter GUI|rz-cutter|rz-cutter|rz-cutter|rz-cutter|rz-cutter||||||
-rizin|reverse|Rizin RE|rizin|rizin|rizin|rizin|rizin||||cmake,make||
-angr|reverse|Binary analysis|python3-angr|python-angr|python3-angr|python3-angr|python3-angr|||||angr|
-pwntools|exploit|CTF framework|python3-pwntools|python-pwntools|python3-pwntools|python3-pwntools|python3-pwntools||||python3|pwntools|
-ropper|exploit|ROP gadget finder|ropper|ropper|ropper|ropper|ropper||||python3|ropper|
-ropgadget|exploit|ROP gadget finder|ropgadget|ropgadget|ropgadget|ropgadget|ropgadget||||python3|ROPgadget|
+cutter|reverse|Cutter GUI|rz-cutter|rz-cutter|rz-cutter|rz-cutter|rz-cutter||||||rz-cutter
+rizin|reverse|Rizin RE|rizin|rizin|rizin|rizin|rizin||||cmake,make||rizin
+angr|reverse|Binary analysis|python3-angr|python-angr|python3-angr|python3-angr|python3-angr|||||angr|angr
+pwntools|exploit|CTF framework|python3-pwntools|python-pwntools|python3-pwntools|python3-pwntools|python3-pwntools||||python3|pwntools|pwntools
+ropper|exploit|ROP gadget finder|ropper|ropper|ropper|ropper|ropper||||python3|ropper|ropper
+ropgadget|exploit|ROP gadget finder|ropgadget|ropgadget|ropgadget|ropgadget|ropgadget||||python3|ROPgadget|ropgadget
 one-gadget|exploit|One gadget finder|one-gadget|one-gadget|one-gadget|one-gadget|one-gadget||||||one_gadget
-checksec|exploit|Binary hardening check|checksec|checksec|checksec|checksec|checksec||||make||
-pwninit|exploit|Pwn init|pwninit|pwninit|pwninit|pwninit|pwninit||||||
-gdb-gef|exploit|GDB Enhanced Features|gef|gef|gef|gef|gef||||||
-gdb-pwndbg|exploit|Pwndbg|pwndbg|pwndbg|pwndbg|pwndbg|pwndbg||||||
-gef|exploit|GDB Enhanced Features|gef|gef|gef|gef|gef||||python3||
-pwndbg|exploit|Pwndbg|pwndbg|pwndbg|pwndbg|pwndbg|pwndbg||||python3||
-peda|exploit|Python Exploit Development|peda|peda|peda|peda|peda||||||
-rtl-sdr|hardware|SDR tools|rtl-sdr|rtl-sdr|rtl-sdr|rtl-sdr|rtl-sdr|sci-libs/rtl-sdr|rtl-sdr|rtl-sdr|||
-hackrf|hardware|HackRF tools|hackrf|hackrf|hackrf|hackrf|hackrf||||||
-ubertooth|hardware|Ubertooth tools|ubertooth|ubertooth|ubertooth|ubertooth|ubertooth||||||
+checksec|exploit|Binary hardening check|checksec|checksec|checksec|checksec|checksec||||make||checksec
+pwninit|exploit|Pwn init|pwninit|pwninit|pwninit|pwninit|pwninit||||||pwninit
+gdb-gef|exploit|GDB Enhanced Features|gef|gef|gef|gef|gef||||||gef
+gdb-pwndbg|exploit|Pwndbg|pwndbg|pwndbg|pwndbg|pwndbg|pwndbg||||||pwndbg
+gef|exploit|GDB Enhanced Features|gef|gef|gef|gef|gef||||python3||gef
+pwndbg|exploit|Pwndbg|pwndbg|pwndbg|pwndbg|pwndbg|pwndbg||||python3||pwndbg
+peda|exploit|Python Exploit Development|peda|peda|peda|peda|peda||||||peda
+rtl-sdr|hardware|SDR tools|rtl-sdr|rtl-sdr|rtl-sdr|rtl-sdr|rtl-sdr|sci-libs/rtl-sdr|rtl-sdr|rtl-sdr|||rtl-sdr
+hackrf|hardware|HackRF tools|hackrf|hackrf|hackrf|hackrf|hackrf||||||hackrf
+ubertooth|hardware|Ubertooth tools|ubertooth|ubertooth|ubertooth|ubertooth|ubertooth||||||ubertooth
 yardstick|hardware|Yard Stick One|yardstick|yardstick|yardstick|yardstick|yardstick||||||yardstick-one
-bladeRF|hardware|bladeRF|bladeRF|bladeRF|bladeRF|bladeRF|||||cmake||
-limesdr|hardware|LimeSDR|limesdr|limesdr|limesdr|limesdr|limesdr||||||
-gqrx|hardware|SDR receiver|gqrx|gqrx|gqrx|gqrx|gqrx||||||
-cubicsdr|hardware|SDR receiver|cubicsdr|cubicsdr|cubicsdr|cubicsdr|cubicsdr||||||
-sdrangel|hardware|SDR transceiver|sdrangel|sdrangel|sdrangel|sdrangel|sdrangel||||||
-inspectrum|hardware|Signal analysis|inspectrum|inspectrum|inspectrum|inspectrum|inspectrum||||||
-sigrok|hardware|Logic analyzer|sigrok|sigrok|sigrok|sigrok|sigrok||||||
+bladeRF|hardware|bladeRF|bladeRF|bladeRF|bladeRF|bladeRF|||||cmake||bladeRF
+limesdr|hardware|LimeSDR|limesdr|limesdr|limesdr|limesdr|limesdr||||||limesdr
+gqrx|hardware|SDR receiver|gqrx|gqrx|gqrx|gqrx|gqrx||||||gqrx
+cubicsdr|hardware|SDR receiver|cubicsdr|cubicsdr|cubicsdr|cubicsdr|cubicsdr||||||cubicsdr
+sdrangel|hardware|SDR transceiver|sdrangel|sdrangel|sdrangel|sdrangel|sdrangel||||||sdrangel
+inspectrum|hardware|Signal analysis|inspectrum|inspectrum|inspectrum|inspectrum|inspectrum||||||inspectrum
+sigrok|hardware|Logic analyzer|sigrok|sigrok|sigrok|sigrok|sigrok||||||sigrok-cli
 pulseview|hardware|Logic analyzer GUI|pulseview|pulseview|pulseview|pulseview|pulseview||||||
 faraday|reporting|Faraday IDE|faraday|faraday|faraday|faraday|faraday|||||faradaysec|faraday
 dradis|reporting|Dradis framework|dradis|dradis|dradis|dradis|dradis||||||dradis
