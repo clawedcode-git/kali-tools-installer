@@ -2684,7 +2684,7 @@ run_doctor() {
             count_fail=$((count_fail + 1))
         else
             # Check interpreter shebang
-            if head -n 1 "${bin_path}" 2>/dev/null | grep -q "^#\!"; then
+            if head -n 1 "${bin_path}" 2>/dev/null | grep -q '^#!'; then
                 local shebang
                 shebang=$(head -n 1 "${bin_path}")
                 if [[ "${shebang}" =~ python && ! $(command -v python3 || command -v python) ]]; then
