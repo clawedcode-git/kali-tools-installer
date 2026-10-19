@@ -303,6 +303,9 @@ uninstall = false
 
 # Export telemetry & availability report (JSON or CSV)
 export_report = /var/log/kali-tools-report.json
+
+# Method overrides (force specific install tier per tool)
+# method_override = wfuzz:pip, nmap:source
 ```
 
 ```bash

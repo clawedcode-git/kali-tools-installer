@@ -3,7 +3,7 @@
 import html
 
 width = 820
-height = 805
+height = 875
 font_family = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace"
 font_size = 14
 line_height = 23
@@ -84,18 +84,21 @@ y += int(line_height * 1.2)
 
 # Menu items
 items = [
-    ("[1]", " ⚡ Quick Presets (top10, default, headless, web...)"),
-    ("[2]", " 📦 Category Explorer (info, vuln, web, password...)"),
-    ("[3]", " 🔍 Select Specific Tools (~171 Available)"),
-    ("[4]", " 🚀 Install All 171 Kali Tools"),
-    ("[5]", " 🔎 Repository Availability Precheck"),
-    ("[6]", " 🗑️  Tool Uninstallation & Cleanup Engine"),
-    ("[7]", " 📋 View Currently Installed Tools"),
-    ("[8]", " ⚙️  Toggle Options (Dry-Run: false, Deps: true)"),
+    ("[1]", " ⚡ Quick Presets (top10, default, headless, web...)", "#22c55e"),
+    ("[2]", " 📦 Category Explorer (info, vuln, web, password...)", "#22c55e"),
+    ("[3]", " 🔍 Select Specific Tools (~171 Available)", "#22c55e"),
+    ("[4]", " 🚀 Install All 171 Kali Tools", "#22c55e"),
+    ("[5]", " 🔎 Repository Availability Precheck", "#22c55e"),
+    ("[6]", " 🗑️  Tool Uninstallation & Cleanup Engine", "#22c55e"),
+    ("[7]", " 📋 View Currently Installed Tools", "#22c55e"),
+    ("[8]", " ⚙️  Toggle Options (Dry-Run: false, Deps: true)", "#22c55e"),
+    ("[U]", " 🔄 Auto-Update Installed Kali Tools", "#38bdf8"),
+    ("[D]", " 📊 Scope Diff Mode (Installed vs Missing)", "#38bdf8"),
+    ("[C]", " ⚡ Shell Tab-Completion Generator (Bash / Zsh)", "#38bdf8"),
 ]
 
-for hotkey, desc in items:
-    add_line(y, f'  <tspan fill="#22c55e" font-weight="bold">{hotkey}</tspan><tspan fill="#f1f5f9">{html.escape(desc)}</tspan>')
+for hotkey, desc, color in items:
+    add_line(y, f'  <tspan fill="{color}" font-weight="bold">{hotkey}</tspan><tspan fill="#f1f5f9">{html.escape(desc)}</tspan>')
     y += line_height
 
 add_line(y, '  <tspan fill="#f87171" font-weight="bold">[Q]</tspan><tspan fill="#f1f5f9"> 🚪 Exit Installer</tspan>')
@@ -104,7 +107,7 @@ y += int(line_height * 1.2)
 add_line(y, '<tspan fill="#3b82f6">─────────────────────────────────────────────────────────────────</tspan>')
 y += int(line_height * 1.2)
 
-add_line(y, '  <tspan fill="#f1f5f9">Select an option [1-8, Q]: </tspan><tspan fill="#38bdf8">█</tspan>')
+add_line(y, '  <tspan fill="#f1f5f9">Select an option [1-8, U, D, C, Q]: </tspan><tspan fill="#38bdf8">█</tspan>')
 
 svg.append("""  </g>
 </svg>""")

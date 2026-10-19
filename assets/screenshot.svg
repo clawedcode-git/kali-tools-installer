@@ -1,6 +1,6 @@
-<svg width="820" height="805" viewBox="0 0 820 805" xmlns="http://www.w3.org/2000/svg">
+<svg width="820" height="875" viewBox="0 0 820 875" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <filter id="shadow" x="-20" y="-20" width="860" height="845" filterUnits="userSpaceOnUse">
+    <filter id="shadow" x="-20" y="-20" width="860" height="915" filterUnits="userSpaceOnUse">
       <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000000" flood-opacity="0.55"/>
     </filter>
     <linearGradient id="titlebar" x1="0" y1="0" x2="0" y2="1">
@@ -10,7 +10,7 @@
   </defs>
 
   <!-- Terminal Window Background -->
-  <rect x="25" y="20" width="770" height="765" rx="12" fill="#0d1117" stroke="#30363d" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="25" y="20" width="770" height="835" rx="12" fill="#0d1117" stroke="#30363d" stroke-width="1.5" filter="url(#shadow)"/>
 
   <!-- Title Bar -->
   <rect x="25" y="20" width="770" height="42" rx="12" fill="url(#titlebar)"/>
@@ -49,8 +49,11 @@
     <text x="50" y="512">  <tspan fill="#22c55e" font-weight="bold">[6]</tspan><tspan fill="#f1f5f9"> 🗑️  Tool Uninstallation &amp; Cleanup Engine</tspan></text>
     <text x="50" y="535">  <tspan fill="#22c55e" font-weight="bold">[7]</tspan><tspan fill="#f1f5f9"> 📋 View Currently Installed Tools</tspan></text>
     <text x="50" y="558">  <tspan fill="#22c55e" font-weight="bold">[8]</tspan><tspan fill="#f1f5f9"> ⚙️  Toggle Options (Dry-Run: false, Deps: true)</tspan></text>
-    <text x="50" y="581">  <tspan fill="#f87171" font-weight="bold">[Q]</tspan><tspan fill="#f1f5f9"> 🚪 Exit Installer</tspan></text>
-    <text x="50" y="608"><tspan fill="#3b82f6">─────────────────────────────────────────────────────────────────</tspan></text>
-    <text x="50" y="635">  <tspan fill="#f1f5f9">Select an option [1-8, Q]: </tspan><tspan fill="#38bdf8">█</tspan></text>
+    <text x="50" y="581">  <tspan fill="#38bdf8" font-weight="bold">[U]</tspan><tspan fill="#f1f5f9"> 🔄 Auto-Update Installed Kali Tools</tspan></text>
+    <text x="50" y="604">  <tspan fill="#38bdf8" font-weight="bold">[D]</tspan><tspan fill="#f1f5f9"> 📊 Scope Diff Mode (Installed vs Missing)</tspan></text>
+    <text x="50" y="627">  <tspan fill="#38bdf8" font-weight="bold">[C]</tspan><tspan fill="#f1f5f9"> ⚡ Shell Tab-Completion Generator (Bash / Zsh)</tspan></text>
+    <text x="50" y="650">  <tspan fill="#f87171" font-weight="bold">[Q]</tspan><tspan fill="#f1f5f9"> 🚪 Exit Installer</tspan></text>
+    <text x="50" y="677"><tspan fill="#3b82f6">─────────────────────────────────────────────────────────────────</tspan></text>
+    <text x="50" y="704">  <tspan fill="#f1f5f9">Select an option [1-8, U, D, C, Q]: </tspan><tspan fill="#38bdf8">█</tspan></text>
   </g>
 </svg>
