@@ -1,7 +1,7 @@
 # Kali Tools Installer
 
 [![CI](https://github.com/clawedcode-git/kali-tools-installer/actions/workflows/ci.yml/badge.svg)](https://github.com/clawedcode-git/kali-tools-installer/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/Tests-77%20Passing-brightgreen.svg)](#running-tests)
+[![Tests](https://img.shields.io/badge/Tests-78%20Passing-brightgreen.svg)](#running-tests)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Bash](https://img.shields.io/badge/Bash-4.0%2B-brightgreen.svg)](https://www.gnu.org/software/bash/)
 [![Platform](https://img.shields.io/badge/Platform-Linux-blue.svg)](#supported-distributions)
@@ -31,7 +31,7 @@ A universal shell script to install all Kali Linux tools on any Linux distributi
 - **100% Arch Linux / CachyOS coverage**: Complete official repo, AUR, and BlackArch mappings across all 171 tools with native `pacman` and unprivileged `yay`/`paru` helper integration
 - **Build-from-source engine**: Automated fallback compilation for tools missing from native repos (supports Go, Python/pip, CMake, Make, and Git clones)
 - **Automated dependency resolution**: Resolves and pre-installs required runtime dependencies (`deps` column) and automatically provisions build prerequisites (`go`, `python3-pip`, `cmake`, `make`, `gcc`, `git`) before compiling source fallbacks
-- **Tool uninstallation & cleanup engine**: Cleanly remove installed tools, presets, or categories (`--uninstall` / `--remove`) via native package managers and purge `/usr/local/bin`, `/opt`, and `pipx` packages with safe `--dry-run` previews
+- **Tool uninstallation & cleanup engine**: Cleanly remove installed tools, presets, categories, or all Kali tools (`--uninstall`, `--remove`, `--uninstall-all`) via native package managers and purge `/usr/local/bin`, `/opt`, and `pipx` packages with safe `--dry-run` previews
 - **Persistent configuration file**: Store defaults (distribution, presets, categories, tools, method overrides, BlackArch enablement, report exports, log locations) in `${XDG_CONFIG_HOME:-~/.config}/kali-installer/config`, `/etc/kali-installer/config`, or a custom path with `--config <path>`
 - **ASCII art banner & retro BBS menus**: Dynamic typography banner with real-time environment dashboard and instant single-key BBS menus for interactive exploration, presets, categories, settings, and direct hotkeys for updates, diffs, and completions
 - **Docker & CI automation**: Universal multi-distro `Dockerfile`, `docker-compose.yml`, local container test runner (`scripts/docker-test.sh`), and GitHub Actions CI matrix testing across 6 distributions on every push and PR
@@ -133,6 +133,9 @@ sudo ./install.sh --rollback latest
 # Uninstall Top 10 Kali tools on Arch / CachyOS
 sudo ./install.sh --distro arch --preset top10 --uninstall --yes
 
+# Uninstall all installed Kali tools
+sudo ./install.sh --uninstall-all --yes
+
 # Preview uninstallation without root privileges
 ./install.sh --distro debian --tools nmap,wireshark --remove --dry-run
 
@@ -178,6 +181,7 @@ When combined with `--dry-run`, the installer evaluates availability, plans the 
 | `--preset <name>` | Install curated preset (top10, default, headless, web, wireless, passwords) |
 | `--categories <list>` | Comma-separated categories to install |
 | `--tools <list>` | Comma-separated specific tools to install |
+| `--all` | Target all 171 Kali tools |
 | `--config <path>` | Load custom configuration file |
 | `--yes`, `-y` | Skip confirmations |
 | `--dry-run` | Preview planned native package commands and source builds without installing |
@@ -188,6 +192,7 @@ When combined with `--dry-run`, the installer evaluates availability, plans the 
 | `--no-update` | Skip package database update |
 | `--no-deps`, `--skip-deps` | Skip automatic dependency pre-installation |
 | `--uninstall`, `--remove` | Uninstall targeted tools, presets, or categories |
+| `--uninstall-all`, `--remove-all` | Uninstall all Kali tools across all categories |
 | `--log-file <path>` | Custom log location (default: /var/log/kali-tools-install.log, fallback /tmp) |
 | `--list-installed` | List installed Kali tools with method, category, version, and statistics |
 | `--update` | Update all currently installed Kali tools across native, AUR, pipx, and Git source |
@@ -510,7 +515,7 @@ kali-tools-installer/
 
 ### Running Tests
 
-The test suite contains 77 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, 5-tier installation fallback, pipx/pip PyPI resolution, BlackArch repository bootstrapping & auto-integration, JSON/CSV report exports, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, CI & Docker automation, ASCII banner & BBS menus, multiline array ingestion, tool list idempotence, empty target guards, build recipes, installed tools dashboard, scoped auto-update, per-tool method overrides, diff mode matrix, batch progress bar & counter, bash & zsh tab completion generation, enhanced BlackArch mappings, doctor health verification, rootless container sandboxing, air-gapped bundle generation, and snapshots & rollback:
+The test suite contains 78 automated tests verifying distribution detection, package caching, column isolation, argument validation, dry-run safety, 5-tier installation fallback, pipx/pip PyPI resolution, BlackArch repository bootstrapping & auto-integration, JSON/CSV report exports, tool presets, dependency resolution, tool uninstallation/cleanup, persistent configuration files, CI & Docker automation, ASCII banner & BBS menus, multiline array ingestion, tool list idempotence, empty target guards, build recipes, installed tools dashboard, scoped auto-update, per-tool method overrides, diff mode matrix, batch progress bar & counter, bash & zsh tab completion generation, enhanced BlackArch mappings, doctor health verification, rootless container sandboxing, air-gapped bundle generation, and snapshots & rollback:
 
 ```bash
 

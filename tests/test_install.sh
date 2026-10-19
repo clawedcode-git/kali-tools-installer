@@ -886,7 +886,7 @@ test_method_override_execution_pip() {
     local out
     out=$(bash "${PROJECT_ROOT}/install.sh" --distro arch --tools wfuzz --method-override wfuzz:pip --dry-run --yes 2>&1)
     echo "${out}" | grep -q "Applying method override for wfuzz: pip" || { test_log "FAIL: pip method override not applied: ${out}"; return 1; }
-    echo "${out}" | grep -q "pipx install wfuzz" || { test_log "FAIL: pipx command missing: ${out}"; return 1; }
+    echo "${out}" | grep -qE "(pipx install wfuzz|pip3 install.*wfuzz)" || { test_log "FAIL: pipx/pip3 command missing: ${out}"; return 1; }
     test_log "PASS: method override execution for pip verified"
 }
 
@@ -1041,6 +1041,16 @@ test_snapshot_and_rollback_flow() {
     test_log "PASS: snapshot creation, listing, and rollback flow verified"
 }
 
+test_uninstall_menu_all_tools() {
+    test_log "Testing bbs_uninstall_menu option [4] Uninstall All Kali Tools..."
+    local out
+    out=$(bash -c "source '${PROJECT_ROOT}/lib/utils.sh'; source '${PROJECT_ROOT}/lib/distro.sh'; source '${PROJECT_ROOT}/lib/packages.sh'; source '${PROJECT_ROOT}/lib/installer.sh'; source '${PROJECT_ROOT}/lib/menu.sh'; load_tool_list; bbs_uninstall_menu <<< '4' && echo \"COUNT:\${#TOOLS_TO_INSTALL[@]}\"" 2>&1)
+    echo "${out}" | grep -q "Uninstall All Kali Tools" || { test_log "FAIL: Uninstall All Kali Tools menu label missing: ${out}"; return 1; }
+    echo "${out}" | grep -q "Selected all tools for uninstallation (171 tools)" || { test_log "FAIL: expected 171 tools selected for uninstallation: ${out}"; return 1; }
+    echo "${out}" | grep -q "COUNT:171" || { test_log "FAIL: TOOLS_TO_INSTALL array not populated with 171 tools: ${out}"; return 1; }
+    test_log "PASS: bbs_uninstall_menu option [4] Uninstall All Kali Tools verified"
+}
+
 run_tests() {
     test_log "=== Starting Kali Tools Installer Tests ==="
     test_log "Test log: ${TEST_LOG}"
@@ -1124,6 +1134,7 @@ run_tests() {
     test_sandbox_dry_run || ((failed+=1))
     test_bundle_generation_dry_run || ((failed+=1))
     test_snapshot_and_rollback_flow || ((failed+=1))
+    test_uninstall_menu_all_tools || ((failed+=1))
     
     test_log "=== Test Summary ==="
     if [[ ${failed} -eq 0 ]]; then

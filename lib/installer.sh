@@ -124,6 +124,19 @@ parse_args() {
                 UNINSTALL=true
                 shift
                 ;;
+            --uninstall-all|--remove-all)
+                UNINSTALL=true
+                SELECTED_PRESET="all"
+                SELECTED_CATEGORIES=()
+                SELECTED_TOOLS=()
+                shift
+                ;;
+            --all)
+                SELECTED_PRESET="all"
+                SELECTED_CATEGORIES=()
+                SELECTED_TOOLS=()
+                shift
+                ;;
             --log-file)
                 if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
                     error "Option $1 requires an argument"
@@ -341,7 +354,9 @@ Options:
     --dry-run               Show packages without installing
     --no-update             Skip package database update
     --no-deps               Skip automatic dependency installation
+    --all                   Target all 171 Kali tools for installation or uninstallation
     --uninstall, --remove   Uninstall targeted tools/preset/categories
+    --uninstall-all         Uninstall all installed Kali tools
     --update                Update all currently installed Kali tools
     --diff                  Compare installed tools vs selected scope (preset/category/all)
     --method-override <t:m> Override install method for specific tools (e.g. wfuzz:pip,nmap:source)
@@ -391,6 +406,13 @@ EOF
 
 
 select_installation_scope() {
+    if [[ "${SELECTED_PRESET:-}" == "all" ]]; then
+        SELECTED_PRESET=""
+        mapfile -t TOOLS_TO_INSTALL < <(list_all_tools)
+        info "Selected all tools (${#TOOLS_TO_INSTALL[@]} tools)"
+        return
+    fi
+
     if [[ -n "${SELECTED_PRESET:-}" ]]; then
         if ! validate_preset "${SELECTED_PRESET}"; then
             error "Unknown preset: ${SELECTED_PRESET}"
@@ -2513,7 +2535,7 @@ _kali_tools_installer() {
     local cur prev words cword
     _init_completion || return
 
-    local options="--distro --preset --categories --tools --config --yes -y --dry-run --no-update --no-deps --uninstall --remove --update --diff --method-override --method --enable-blackarch --no-tui --plain --log-file --list-installed --completion --precheck --export-report --doctor --verify --sandbox --bundle --snapshot --list-snapshots --rollback --help -h"
+    local options="--distro --preset --categories --tools --all --config --yes -y --dry-run --no-update --no-deps --uninstall --remove --uninstall-all --remove-all --update --diff --method-override --method --enable-blackarch --no-tui --plain --log-file --list-installed --completion --precheck --export-report --doctor --verify --sandbox --bundle --snapshot --list-snapshots --rollback --help -h"
 EOF
             echo "    local distros=\"${distros}\""
             echo "    local presets=\"${presets}\""
@@ -2574,6 +2596,7 @@ EOF
             printf "        '--categories[Comma-separated categories to install]:category:(%s)'\n" "${categories}"
             printf "        '--tools[Comma-separated specific tools to install]:tool:(%s)'\n" "${all_tools}"
             cat << 'EOF'
+        '--all[Target all 171 Kali tools]'
         '--config[Load custom configuration file]:config file:_files'
         '--yes[Skip confirmations]'
         '-y[Skip confirmations]'
@@ -2582,6 +2605,8 @@ EOF
         '--no-deps[Skip automatic dependency installation]'
         '--uninstall[Uninstall targeted tools, preset, or categories]'
         '--remove[Uninstall targeted tools, preset, or categories]'
+        '--uninstall-all[Uninstall all Kali tools]'
+        '--remove-all[Uninstall all Kali tools]'
         '--update[Update all currently installed Kali tools]'
         '--diff[Compare installed tools vs selected scope]'
         '--method-override[Override installation method for specific tools]:override:'

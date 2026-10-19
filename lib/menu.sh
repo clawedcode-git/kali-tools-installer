@@ -270,12 +270,13 @@ bbs_uninstall_menu() {
         echo -e "  ${GREEN}[1]${NC}  Uninstall by Preset (top10, headless, web...)"
         echo -e "  ${GREEN}[2]${NC}  Uninstall by Category"
         echo -e "  ${GREEN}[3]${NC}  Uninstall Specific Tools"
+        echo -e "  ${RED}[4]${NC}  Uninstall All Kali Tools (~171 Packages)"
         echo -e "  ${YELLOW}[B]${NC}  Back to Main Menu"
         echo
         echo -e "${BLUE}─────────────────────────────────────────────────────────────────${NC}"
         
         local choice
-        choice=$(bbs_read_key "  Select option [1-3, B]: ")
+        choice=$(bbs_read_key "  Select option [1-4, B]: ")
         echo
         
         case "${choice,,}" in
@@ -293,6 +294,14 @@ bbs_uninstall_menu() {
                 if bbs_tools_menu; then
                     return 0
                 fi
+                ;;
+            4)
+                SELECTED_PRESET=""
+                SELECTED_CATEGORIES=()
+                SELECTED_TOOLS=()
+                mapfile -t TOOLS_TO_INSTALL < <(list_all_tools)
+                info "Selected all tools for uninstallation (${#TOOLS_TO_INSTALL[@]} tools)"
+                return 0
                 ;;
             b)
                 UNINSTALL=false
