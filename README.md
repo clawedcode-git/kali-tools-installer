@@ -87,8 +87,8 @@ Running without arguments launches the **BBS Retro Style Menu System** with an A
   <img src="assets/screenshot.svg?v=20260916-3" alt="Kali Tools Installer BBS Menu &amp; Concept A Banner" width="800"/>
 </p>
 
-- **Instant Keypress Navigation**: Press single hotkeys (`1`-`8`, `Q`) to navigate menus instantly without needing to press Enter.
-- **Dedicated Submenus**: Browse curated tool presets with tool counts, explore categories, select specific tools, or test repository availability.
+- **Instant Keypress Navigation**: Press single hotkeys (`1`-`8`, `U`, `D`, `C`, `Q`) to navigate menus instantly without needing to press Enter.
+- **Dedicated Submenus**: Browse curated tool presets with tool counts, explore categories, select specific tools, test repository availability, or uninstall by preset, category, specific tools, or all 171 Kali tools (`[4] Uninstall All Kali Tools`).
 - **Non-Interactive & Plain Modes**: The menu system automatically degrades to standard streams when redirected, in CI/CD, when passing `--yes`, or via `--no-tui` / `--plain`.
 
 ### Non-Interactive Mode (Automation)
